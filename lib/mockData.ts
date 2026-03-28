@@ -1,0 +1,111 @@
+import { Project } from './types'
+
+export const mockProjects: Project[] = [
+  {
+    id: '1',
+    name: '2025 天際創意節',
+    category: 'B',
+    status: '執行中',
+    responsible: '瑜芸',
+    stages: [
+      { stageId: '提案', name: '提案', startDate: '2025-01-15', endDate: '2025-02-10', assignee: '瑜芸' },
+      { stageId: '設計', name: '設計', startDate: '2025-02-11', endDate: '2025-04-30', assignee: '芷榕' },
+      { stageId: '打樣', name: '打樣', startDate: '2025-05-01', endDate: '2025-06-15', assignee: '芷榕' },
+      { stageId: '量產', name: '量產', startDate: '2025-06-16', endDate: '2025-08-31', assignee: '瑜芸' },
+      { stageId: '佈設', name: '佈設', startDate: '2025-09-01', endDate: '2025-09-20', assignee: '瑜芸' },
+      { stageId: '展期', name: '展期', startDate: '2025-09-21', endDate: '2025-10-31', assignee: null },
+      { stageId: '撤場', name: '撤場', startDate: '2025-11-01', endDate: '2025-11-05', assignee: '芷榕' },
+    ],
+  },
+  {
+    id: '2',
+    name: '台中市政府公共藝術計畫',
+    category: 'C',
+    status: '執行中',
+    responsible: '芷榕',
+    stages: [
+      { stageId: '提案', name: '提案', startDate: '2025-03-01', endDate: '2025-03-31', assignee: '芷榕' },
+      { stageId: '設計', name: '設計', startDate: '2025-04-01', endDate: '2025-05-31', assignee: '瑜芸' },
+      { stageId: '打樣', name: '打樣', startDate: '2025-06-01', endDate: '2025-07-15', assignee: '芷榕' },
+      { stageId: '量產', name: '量產', startDate: '2025-07-16', endDate: '2025-09-30', assignee: '芷榕' },
+      { stageId: '佈設', name: '佈設', startDate: '2025-10-01', endDate: '2025-10-20', assignee: '瑜芸' },
+    ],
+  },
+  {
+    id: '3',
+    name: '某品牌旗艦店空間設計',
+    category: 'A',
+    status: '執行中',
+    responsible: '瑜芸',
+    stages: [
+      { stageId: '提案', name: '提案', startDate: '2025-02-01', endDate: '2025-02-28', assignee: '瑜芸' },
+      { stageId: '設計', name: '設計', startDate: '2025-03-01', endDate: '2025-05-31', assignee: '瑜芸' },
+      { stageId: '打樣', name: '打樣', startDate: '2025-06-01', endDate: '2025-06-30', assignee: '芷榕' },
+    ],
+  },
+  {
+    id: '4',
+    name: 'ZAP 官網重製',
+    category: '0',
+    status: '執行中',
+    responsible: '芷榕',
+    stages: [
+      { stageId: '提案', name: '提案', startDate: '2025-01-01', endDate: '2025-01-31', assignee: '芷榕' },
+      { stageId: '設計', name: '設計', startDate: '2025-02-01', endDate: '2025-03-31', assignee: '芷榕' },
+      { stageId: '打樣', name: '打樣', startDate: '2025-04-01', endDate: '2025-04-30', assignee: '瑜芸' },
+    ],
+  },
+  {
+    id: '5',
+    name: '2025 高雄燈節互動裝置',
+    category: 'C',
+    status: '已結案',
+    responsible: '瑜芸',
+    stages: [
+      { stageId: '提案', name: '提案', startDate: '2024-08-01', endDate: '2024-08-31', assignee: '瑜芸' },
+      { stageId: '設計', name: '設計', startDate: '2024-09-01', endDate: '2024-10-31', assignee: '芷榕' },
+      { stageId: '打樣', name: '打樣', startDate: '2024-11-01', endDate: '2024-11-30', assignee: '芷榕' },
+      { stageId: '量產', name: '量產', startDate: '2024-12-01', endDate: '2025-01-10', assignee: '瑜芸' },
+      { stageId: '佈設', name: '佈設', startDate: '2025-01-15', endDate: '2025-01-19', assignee: '瑜芸' },
+      { stageId: '展期', name: '展期', startDate: '2025-01-20', endDate: '2025-02-20', assignee: null },
+      { stageId: '撤場', name: '撤場', startDate: '2025-02-21', endDate: '2025-02-25', assignee: '芷榕' },
+    ],
+  },
+  {
+    id: '6',
+    name: '藝術家聯展空間規劃',
+    category: 'B',
+    status: '提案中',
+    responsible: '芷榕',
+    stages: [
+      { stageId: '提案', name: '提案', startDate: '2025-05-01', endDate: '2025-05-31', assignee: '芷榕' },
+    ],
+  },
+  {
+    id: '7',
+    name: '企業藝術品採購顧問',
+    category: 'E',
+    status: '等待結果',
+    responsible: '瑜芸',
+    stages: [
+      { stageId: '提案', name: '提案', startDate: '2025-01-10', endDate: '2025-01-25', assignee: '瑜芸' },
+      { stageId: '設計', name: '設計', startDate: '2025-01-26', endDate: '2025-02-28', assignee: '瑜芸' },
+      { stageId: '佈設', name: '佈設', startDate: '2025-03-10', endDate: '2025-03-15', assignee: '瑜芸' },
+      { stageId: '展期', name: '展期', startDate: '2025-03-16', endDate: '2025-06-30', assignee: null },
+    ],
+  },
+  {
+    id: '8',
+    name: 'ZAP 限定商品系列',
+    category: 'D',
+    status: '執行中',
+    responsible: '芷榕',
+    stages: [
+      { stageId: '提案', name: '提案', startDate: '2025-02-15', endDate: '2025-03-15', assignee: '芷榕' },
+      { stageId: '設計', name: '設計', startDate: '2025-03-16', endDate: '2025-04-30', assignee: '瑜芸' },
+      { stageId: '打樣', name: '打樣', startDate: '2025-05-01', endDate: '2025-05-31', assignee: '芷榕' },
+      { stageId: '量產', name: '量產', startDate: '2025-06-01', endDate: '2025-07-31', assignee: '芷榕' },
+    ],
+  },
+]
+

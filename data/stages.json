@@ -1,0 +1,247 @@
+{
+  "23088c74-a8d3-82dc-84f9-81874dded058": [
+    {
+      "stageId": "23088c74-a8d3-82dc-84f9-81874dded058-stage-0",
+      "name": "最終測試",
+      "startDate": "2025-10-06",
+      "endDate": "2025-10-14",
+      "assignee": null
+    },
+    {
+      "stageId": "23088c74-a8d3-82dc-84f9-81874dded058-stage-1",
+      "name": "展覽宣傳期",
+      "startDate": "2026-02-26",
+      "endDate": "2026-04-16",
+      "assignee": null
+    }
+  ],
+  "14088c74-a8d3-8306-9a59-01799531244e": [
+    {
+      "stageId": "14088c74-a8d3-8306-9a59-01799531244e-stage-0",
+      "name": "提案期",
+      "startDate": "2025-08-08",
+      "endDate": "2025-08-31",
+      "assignee": null
+    },
+    {
+      "stageId": "14088c74-a8d3-8306-9a59-01799531244e-stage-1",
+      "name": "研發期",
+      "startDate": "2026-03-01",
+      "endDate": "2026-04-30",
+      "assignee": null
+    },
+    {
+      "stageId": "14088c74-a8d3-8306-9a59-01799531244e-stage-2",
+      "name": "製作期",
+      "startDate": "2026-05-01",
+      "endDate": "2026-07-31",
+      "assignee": null
+    },
+    {
+      "stageId": "14088c74-a8d3-8306-9a59-01799531244e-stage-3",
+      "name": "第一段展期",
+      "startDate": "2026-08-01",
+      "endDate": "2026-10-30",
+      "assignee": null
+    },
+    {
+      "stageId": "14088c74-a8d3-8306-9a59-01799531244e-stage-4",
+      "name": "第二段展期",
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-30",
+      "assignee": null
+    }
+  ],
+  "3e188c74-a8d3-826d-95d6-015a2de5c0d5": [
+    {
+      "stageId": "3e188c74-a8d3-826d-95d6-015a2de5c0d5-stage-0",
+      "name": "展期",
+      "startDate": "2026-02-07",
+      "endDate": "2026-03-08",
+      "assignee": null
+    }
+  ],
+  "3bf88c74-a8d3-82b3-b892-81645e01fa1c": [
+    {
+      "stageId": "3bf88c74-a8d3-82b3-b892-81645e01fa1c-stage-0",
+      "name": "展期˙",
+      "startDate": "2026-02-27",
+      "endDate": "2026-03-15",
+      "assignee": null
+    }
+  ],
+  "9fe88c74-a8d3-82a3-9e33-01609defd860": [
+    {
+      "stageId": "9fe88c74-a8d3-82a3-9e33-01609defd860-stage-0",
+      "name": "提案",
+      "startDate": "2026-02-25",
+      "endDate": "2026-03-31",
+      "assignee": null
+    },
+    {
+      "stageId": "9fe88c74-a8d3-82a3-9e33-01609defd860-stage-1",
+      "name": "設計",
+      "startDate": "2026-04-01",
+      "endDate": "2026-05-31",
+      "assignee": null
+    },
+    {
+      "stageId": "9fe88c74-a8d3-82a3-9e33-01609defd860-stage-2",
+      "name": "打樣",
+      "startDate": "2026-06-01",
+      "endDate": "2026-08-31",
+      "assignee": null
+    },
+    {
+      "stageId": "9fe88c74-a8d3-82a3-9e33-01609defd860-stage-3",
+      "name": "製作",
+      "startDate": "2026-09-01",
+      "endDate": "2026-12-01",
+      "assignee": null
+    },
+    {
+      "stageId": "9fe88c74-a8d3-82a3-9e33-01609defd860-stage-4",
+      "name": "進場",
+      "startDate": "2026-12-01",
+      "endDate": "2027-03-02",
+      "assignee": null
+    }
+  ],
+  "77f88c74-a8d3-8317-bf9a-01d5433f893f": [
+    {
+      "stageId": "77f88c74-a8d3-8317-bf9a-01d5433f893f-stage-0",
+      "name": "展期",
+      "startDate": "2026-03-03",
+      "endDate": "2026-03-15",
+      "assignee": null
+    }
+  ],
+  "d2e88c74-a8d3-832b-b36e-01a51632690f": [
+    {
+      "stageId": "d2e88c74-a8d3-832b-b36e-01a51632690f-stage-0",
+      "name": "展期",
+      "startDate": "2026-09-24",
+      "endDate": "2026-10-11",
+      "assignee": null
+    },
+    {
+      "stageId": "d2e88c74-a8d3-832b-b36e-01a51632690f-stage-1",
+      "name": "設計",
+      "startDate": "2026-02-25",
+      "endDate": "2026-04-30",
+      "assignee": null
+    },
+    {
+      "stageId": "d2e88c74-a8d3-832b-b36e-01a51632690f-stage-2",
+      "name": "打樣",
+      "startDate": "2026-05-01",
+      "endDate": "2026-06-30",
+      "assignee": null
+    },
+    {
+      "stageId": "d2e88c74-a8d3-832b-b36e-01a51632690f-stage-3",
+      "name": "製作",
+      "startDate": "2026-07-01",
+      "endDate": "2026-08-31",
+      "assignee": null
+    },
+    {
+      "stageId": "d2e88c74-a8d3-832b-b36e-01a51632690f-stage-4",
+      "name": "進場",
+      "startDate": "2026-09-01",
+      "endDate": "2026-09-24",
+      "assignee": null
+    }
+  ],
+  "6ac88c74-a8d3-834d-8a94-01e0e05ee125": [
+    {
+      "stageId": "6ac88c74-a8d3-834d-8a94-01e0e05ee125-stage-0",
+      "name": "預計展期",
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-17",
+      "assignee": null
+    }
+  ],
+  "01688c74-a8d3-8294-8c1d-01193820082c": [
+    {
+      "stageId": "01688c74-a8d3-8294-8c1d-01193820082c-stage-0",
+      "name": "預計展期",
+      "startDate": "2026-05-09",
+      "endDate": "2026-05-31",
+      "assignee": null
+    },
+    {
+      "stageId": "4220ea3b-0aad-4d64-906b-e0fc190c46ac",
+      "name": "進場",
+      "startDate": "2026-05-05",
+      "endDate": "2026-05-07",
+      "assignee": null
+    }
+  ],
+  "21088c74-a8d3-82f9-ab3d-813e750537b5": [
+    {
+      "stageId": "21088c74-a8d3-82f9-ab3d-813e750537b5-stage-0",
+      "name": "裝置B_垃圾桶開發",
+      "startDate": "2026-02-25",
+      "endDate": "2026-04-30",
+      "assignee": null
+    }
+  ],
+  "0c688c74-a8d3-82f7-85da-812a0b4f4a37": [
+    {
+      "stageId": "0c688c74-a8d3-82f7-85da-812a0b4f4a37-stage-0",
+      "name": "研發測試",
+      "startDate": "2026-02-25",
+      "endDate": "2026-03-23",
+      "assignee": null
+    },
+    {
+      "stageId": "0c688c74-a8d3-82f7-85da-812a0b4f4a37-stage-1",
+      "name": "製作購買",
+      "startDate": "2026-03-24",
+      "endDate": "2026-04-10",
+      "assignee": null
+    },
+    {
+      "stageId": "0c688c74-a8d3-82f7-85da-812a0b4f4a37-stage-2",
+      "name": "開課",
+      "startDate": "2026-04-11",
+      "endDate": "2026-04-18",
+      "assignee": null
+    },
+    {
+      "stageId": "0c688c74-a8d3-82f7-85da-812a0b4f4a37-stage-3",
+      "name": "課程內容",
+      "startDate": "2026-02-25",
+      "endDate": "2026-04-10",
+      "assignee": null
+    }
+  ],
+  "5bd88c74-a8d3-8354-87ca-815faf492937": [
+    {
+      "stageId": "5bd88c74-a8d3-8354-87ca-815faf492937-stage-0",
+      "name": "課綱擬定",
+      "startDate": "2026-02-25",
+      "endDate": "2026-03-03",
+      "assignee": null
+    }
+  ],
+  "94388c74-a8d3-8392-870f-81f97ffa6874": [
+    {
+      "stageId": "94388c74-a8d3-8392-870f-81f97ffa6874-stage-0",
+      "name": "工作會議",
+      "startDate": "2026-03-15",
+      "endDate": "2026-03-21",
+      "assignee": null
+    }
+  ],
+  "b6588c74-a8d3-82c9-b902-01c3dc8f0396": [
+    {
+      "stageId": "057934ba-445f-4cc2-8813-cfb6d1475906",
+      "name": "進場",
+      "startDate": "2026-06-01",
+      "endDate": "2026-06-07",
+      "assignee": null
+    }
+  ]
+}
