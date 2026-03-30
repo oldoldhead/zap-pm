@@ -18,7 +18,7 @@ interface GanttChartProps {
 }
 
 const DAY_WIDTH = 5
-const MIN_ROW_HEIGHT = 52  // 稍微增高以容納狀態 badge
+const MIN_ROW_HEIGHT = 44
 const LANE_HEIGHT = 28
 const LANE_PAD = 10
 const LABEL_WIDTH = 210
@@ -343,12 +343,10 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                   <span className={`text-xs font-bold shrink-0 ${CATEGORY_TEXT_COLORS[project.category]}`}>
                     {project.category}
                   </span>
-                  <div className="flex flex-col justify-center gap-0.5 flex-1 min-w-0">
-                    <span className="text-zinc-200 text-xs truncate leading-tight">{project.name}</span>
-                    <span className={`text-[10px] px-1.5 py-px rounded-full w-fit leading-tight ${STATUS_COLORS[project.status]}`}>
-                      {project.status}
-                    </span>
-                  </div>
+                  <span className={`text-[10px] px-1.5 py-px rounded-full shrink-0 leading-tight ${STATUS_COLORS[project.status]}`}>
+                    {project.status}
+                  </span>
+                  <span className="text-zinc-200 text-xs truncate flex-1 min-w-0">{project.name}</span>
                   <button
                     className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-cyan-400 hover:bg-zinc-700 transition-colors opacity-0 group-hover/row:opacity-100"
                     title="新增階段"
