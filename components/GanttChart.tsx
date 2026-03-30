@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
-import { Project, CATEGORY_TEXT_COLORS, STAGE_PALETTE } from '@/lib/types'
+import { Project, CATEGORY_TEXT_COLORS, STAGE_PALETTE, STATUS_COLORS } from '@/lib/types'
 
 interface UpdatePayload {
   name?: string
@@ -18,12 +18,13 @@ interface GanttChartProps {
 }
 
 const DAY_WIDTH = 5
-const MIN_ROW_HEIGHT = 44
-const LANE_HEIGHT = 28   // 每個分層的高度
-const LANE_PAD = 8       // 列上下各 4px 留白
+const MIN_ROW_HEIGHT = 52  // 稍微增高以容納狀態 badge
+const LANE_HEIGHT = 28
+const LANE_PAD = 10
 const LABEL_WIDTH = 210
 const HEADER_HEIGHT = 36
 const HANDLE_WIDTH = 7
+const ZINC_900 = '#18181b'
 
 // 計算各階段所屬分層（避免重疊）
 function assignLanes(stages: { stageId: string; startDate: string | null; endDate: string | null }[]): Map<string, number> {
@@ -283,58 +284,36 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
         />
       )}
 
-      <div className="flex">
-        {/* Fixed label panel */}
-        <div className="shrink-0 z-10 bg-zinc-900" style={{ width: LABEL_WIDTH }}>
-          <div style={{ height: HEADER_HEIGHT }} className="border-b border-zinc-700" />
-          {projects.map((project) => {
-            const laneMap = assignLanes(project.stages)
-            const rh = rowHeight(laneMap)
-            return (
-              <div
-                key={project.id}
-                className="flex items-center gap-2 px-3 border-b border-zinc-800/50 group/row"
-                style={{ height: rh }}
-              >
-                <span className={`text-xs font-bold shrink-0 ${CATEGORY_TEXT_COLORS[project.category]}`}>
-                  {project.category}
-                </span>
-                <span className="text-zinc-200 text-xs truncate flex-1">{project.name}</span>
-                <button
-                  className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-cyan-400 hover:bg-zinc-700 transition-colors opacity-0 group-hover/row:opacity-100"
-                  title="新增階段"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                    setAddPopover({ projectId: project.id, x: rect.left, y: rect.bottom + 4 })
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                    <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </button>
-              </div>
-            )
-          })}
-        </div>
+      {/* ── Single scrollable container (horizontal + vertical) ── */}
+      <div
+        ref={scrollRef}
+        style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '75vh', cursor: 'grab' }}
+        onMouseDown={onPanDown}
+        onMouseMove={onPanMove}
+        onMouseUp={onPanUp}
+        onMouseLeave={onPanUp}
+      >
+        {/* Inner width: label + timeline */}
+        <div style={{ minWidth: LABEL_WIDTH + totalWidth, position: 'relative' }}>
 
-        {/* Scrollable timeline */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-x-auto overflow-y-hidden"
-          style={{ cursor: 'grab' }}
-          onMouseDown={onPanDown}
-          onMouseMove={onPanMove}
-          onMouseUp={onPanUp}
-          onMouseLeave={onPanUp}
-        >
-          <div style={{ width: totalWidth, position: 'relative' }}>
-            {/* Month headers */}
-            <div className="relative border-b border-zinc-700 bg-zinc-900" style={{ height: HEADER_HEIGHT }}>
+          {/* ── Sticky month-header row ── */}
+          <div
+            className="flex border-b border-zinc-700"
+            style={{ position: 'sticky', top: 0, zIndex: 30, height: HEADER_HEIGHT, background: ZINC_900 }}
+          >
+            {/* Corner cell – sticky left too */}
+            <div
+              className="shrink-0 flex items-center px-3 border-r border-zinc-700"
+              style={{ position: 'sticky', left: 0, zIndex: 31, width: LABEL_WIDTH, background: ZINC_900 }}
+            >
+              <span className="text-zinc-500 text-xs font-medium">專案</span>
+            </div>
+            {/* Month labels */}
+            <div className="relative flex-1" style={{ width: totalWidth }}>
               {monthHeaders.map((m) => (
                 <div
                   key={m.label}
-                  className="absolute top-0 bottom-0 flex items-center justify-center text-xs text-zinc-500 border-l border-zinc-800"
+                  className="absolute top-0 bottom-0 flex items-center justify-center text-xs text-zinc-500 border-l border-zinc-700/60"
                   style={{ left: m.left, width: m.width }}
                 >
                   {m.label}
@@ -344,30 +323,71 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                 <div className="absolute top-0 bottom-0 w-px bg-cyan-400/60 z-20" style={{ left: todayLeft }} />
               )}
             </div>
+          </div>
 
-            {/* Project rows */}
-            {projects.map((project) => {
-              const laneMap = assignLanes(project.stages)
-              const rh = rowHeight(laneMap)
-              return (
+          {/* ── Project rows ── */}
+          {projects.map((project) => {
+            const laneMap = assignLanes(project.stages)
+            const rh = rowHeight(laneMap)
+            return (
+              <div
+                key={project.id}
+                className="flex border-b border-zinc-800/50 hover:bg-zinc-800/10 group/row"
+                style={{ height: rh }}
+              >
+                {/* Label cell – sticky left */}
                 <div
-                  key={project.id}
-                  className="relative border-b border-zinc-800/50 hover:bg-zinc-800/20"
-                  style={{ height: rh }}
+                  className="shrink-0 flex items-center gap-2 px-3 border-r border-zinc-800/50"
+                  style={{ position: 'sticky', left: 0, zIndex: 20, width: LABEL_WIDTH, background: ZINC_900 }}
                 >
+                  <span className={`text-xs font-bold shrink-0 ${CATEGORY_TEXT_COLORS[project.category]}`}>
+                    {project.category}
+                  </span>
+                  <div className="flex flex-col justify-center gap-0.5 flex-1 min-w-0">
+                    <span className="text-zinc-200 text-xs truncate leading-tight">{project.name}</span>
+                    <span className={`text-[10px] px-1.5 py-px rounded-full w-fit leading-tight ${STATUS_COLORS[project.status]}`}>
+                      {project.status}
+                    </span>
+                  </div>
+                  <button
+                    className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-cyan-400 hover:bg-zinc-700 transition-colors opacity-0 group-hover/row:opacity-100"
+                    title="新增階段"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                      setAddPopover({ projectId: project.id, x: rect.left, y: rect.bottom + 4 })
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                      <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Timeline cell */}
+                <div className="relative" style={{ width: totalWidth, height: rh }}>
+                  {/* Month grid lines */}
                   {monthHeaders.map((m) => (
-                    <div key={m.label} className="absolute top-0 bottom-0 border-l border-zinc-800/40" style={{ left: m.left }} />
+                    <div
+                      key={m.label}
+                      className="absolute top-0 bottom-0 border-l border-zinc-700/50"
+                      style={{ left: m.left }}
+                    />
                   ))}
+                  {/* Today line */}
                   {showToday && (
                     <div className="absolute top-0 bottom-0 w-px bg-cyan-400/20 z-0" style={{ left: todayLeft }} />
                   )}
 
+                  {/* No stages hint */}
                   {project.stages.length === 0 && (
                     <div className="absolute inset-0 flex items-center px-3">
                       <span className="text-zinc-700 text-xs italic">尚無階段，點左側 + 新增</span>
                     </div>
                   )}
 
+                  {/* Stage bars */}
                   {project.stages.map((stage, si) => {
                     if (!stage.startDate || !stage.endDate) return null
 
@@ -484,9 +504,9 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                     )
                   })}
                 </div>
-              )
-            })}
-          </div>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
