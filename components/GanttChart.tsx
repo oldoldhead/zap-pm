@@ -21,9 +21,12 @@ const DAY_WIDTH = 5
 const MIN_ROW_HEIGHT = 34
 const LANE_HEIGHT = 28
 const LANE_PAD = 6
-const LABEL_WIDTH = 210
+const LABEL_WIDTH_MIN = 220
+const LABEL_WIDTH_MAX = 1200
+const LABEL_WIDTH_STORAGE_KEY = 'zap-gantt-label-width'
 const HEADER_HEIGHT = 36
 const HANDLE_WIDTH = 7
+const LABEL_RESIZER_W = 6
 const ZINC_900 = '#18181b'
 
 // 計算各階段所屬分層（避免重疊）
@@ -83,6 +86,11 @@ interface ResizeState {
   currentDate: string
 }
 
+interface LabelColumnDragState {
+  startX: number
+  startWidth: number
+}
+
 interface EditPopover {
   projectId: string
   stageId: string
@@ -129,6 +137,16 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
   const [editPopover, setEditPopover] = useState<EditPopover | null>(null)
   const [addPopover, setAddPopover] = useState<AddPopover | null>(null)
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null)
+  /** null = 尚未手動調整，沿用建議寬度 */
+  const [labelPaneWidthUser, setLabelPaneWidthUser] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null
+    const raw = localStorage.getItem(LABEL_WIDTH_STORAGE_KEY)
+    if (raw == null) return null
+    const n = Number.parseInt(raw, 10)
+    if (!Number.isFinite(n)) return null
+    return Math.min(LABEL_WIDTH_MAX, Math.max(LABEL_WIDTH_MIN, n))
+  })
+  const [labelColumnDrag, setLabelColumnDrag] = useState<LabelColumnDragState | null>(null)
 
   const { startDate, totalDays } = useMemo(() => {
     const allDates: Date[] = []
@@ -156,6 +174,23 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
 
   const totalWidth = totalDays * DAY_WIDTH
   const monthHeaders = useMemo(() => getMonthHeaders(startDate, totalDays), [startDate, totalDays])
+
+  /** 依最長專案名估算的建議寬度（未手動調整時使用） */
+  const labelWidthSuggested = useMemo(() => {
+    const CHAR_PX = 13
+    const CHROME = 120
+    const SAFETY = 20
+    let maxChars = 0
+    for (const p of projects) {
+      maxChars = Math.max(maxChars, [...p.name].length)
+    }
+    return Math.max(LABEL_WIDTH_MIN, Math.ceil(CHROME + maxChars * CHAR_PX + SAFETY))
+  }, [projects])
+
+  const labelWidth = Math.min(
+    LABEL_WIDTH_MAX,
+    Math.max(LABEL_WIDTH_MIN, labelPaneWidthUser ?? labelWidthSuggested)
+  )
 
   useEffect(() => {
     if (!scrollRef.current) return
@@ -195,6 +230,42 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
       window.removeEventListener('mouseup', onUp)
     }
   }, [resizing, projects, onUpdateStage])
+
+  // 拖曳調整左側專案欄寬度
+  useEffect(() => {
+    if (!labelColumnDrag) return
+    const onMove = (e: MouseEvent) => {
+      const dx = e.clientX - labelColumnDrag.startX
+      const next = Math.min(
+        LABEL_WIDTH_MAX,
+        Math.max(LABEL_WIDTH_MIN, labelColumnDrag.startWidth + dx)
+      )
+      setLabelPaneWidthUser(next)
+    }
+    const onUp = (e: MouseEvent) => {
+      const dx = e.clientX - labelColumnDrag.startX
+      const final = Math.min(
+        LABEL_WIDTH_MAX,
+        Math.max(LABEL_WIDTH_MIN, labelColumnDrag.startWidth + dx)
+      )
+      setLabelPaneWidthUser(final)
+      try {
+        localStorage.setItem(LABEL_WIDTH_STORAGE_KEY, String(final))
+      } catch {
+        /* ignore quota / private mode */
+      }
+      setLabelColumnDrag(null)
+      if (scrollRef.current) scrollRef.current.style.cursor = 'grab'
+    }
+    if (scrollRef.current) scrollRef.current.style.cursor = 'col-resize'
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      if (scrollRef.current) scrollRef.current.style.cursor = 'grab'
+    }
+  }, [labelColumnDrag])
 
   const onPanDown = useCallback((e: React.MouseEvent) => {
     if (resizing) return
@@ -294,7 +365,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
         onMouseLeave={onPanUp}
       >
         {/* Inner width: label + timeline */}
-        <div style={{ minWidth: LABEL_WIDTH + totalWidth, position: 'relative' }}>
+        <div style={{ minWidth: labelWidth + LABEL_RESIZER_W + totalWidth, position: 'relative' }}>
 
           {/* ── Sticky month-header row ── */}
           <div
@@ -304,10 +375,24 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
             {/* Corner cell – sticky left too */}
             <div
               className="shrink-0 flex items-center px-3 border-r border-zinc-700"
-              style={{ position: 'sticky', left: 0, zIndex: 31, width: LABEL_WIDTH, background: ZINC_900 }}
+              style={{ position: 'sticky', left: 0, zIndex: 31, width: labelWidth, background: ZINC_900 }}
             >
               <span className="text-zinc-500 text-xs font-medium">專案</span>
             </div>
+            <div
+              data-label-resizer
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="調整專案欄寬度"
+              title="拖曳調整專案欄寬度"
+              className="shrink-0 cursor-col-resize hover:bg-cyan-500/20 bg-zinc-900/80 border-l border-zinc-600/50"
+              style={{ position: 'sticky', left: labelWidth, zIndex: 34, width: LABEL_RESIZER_W, alignSelf: 'stretch' }}
+              onMouseDown={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                setLabelColumnDrag({ startX: e.clientX, startWidth: labelWidth })
+              }}
+            />
             {/* Month labels */}
             <div className="relative flex-1" style={{ width: totalWidth }}>
               {monthHeaders.map((m) => (
@@ -335,18 +420,20 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                 className="flex border-b border-zinc-800/50 hover:bg-zinc-800/10 group/row"
                 style={{ height: rh }}
               >
-                {/* Label cell – sticky left */}
+                {/* Label cell – sticky left；單行、欄寬依最長名稱動態加寬 */}
                 <div
-                  className="shrink-0 flex items-center gap-2 px-3 border-r border-zinc-800/50"
-                  style={{ position: 'sticky', left: 0, zIndex: 20, width: LABEL_WIDTH, background: ZINC_900 }}
+                  className="shrink-0 flex items-center gap-2 min-w-0 px-3 border-r border-zinc-800/50 box-border"
+                  style={{ position: 'sticky', left: 0, zIndex: 20, width: labelWidth, background: ZINC_900, height: rh }}
                 >
                   <span className={`text-xs font-bold shrink-0 ${CATEGORY_TEXT_COLORS[project.category]}`}>
                     {project.category}
                   </span>
-                  <span className={`text-[10px] px-1.5 py-px rounded-full shrink-0 leading-tight ${STATUS_COLORS[project.status]}`}>
+                  <span className={`text-[10px] px-1.5 py-px rounded-full shrink-0 leading-tight whitespace-nowrap ${STATUS_COLORS[project.status]}`}>
                     {project.status}
                   </span>
-                  <span className="text-zinc-200 text-xs truncate flex-1 min-w-0">{project.name}</span>
+                  <span className="text-zinc-200 text-xs truncate min-w-0 flex-1" title={project.name}>
+                    {project.name}
+                  </span>
                   <button
                     className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-cyan-400 hover:bg-zinc-700 transition-colors opacity-0 group-hover/row:opacity-100"
                     title="新增階段"
@@ -362,9 +449,22 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                     </svg>
                   </button>
                 </div>
+                <div
+                  data-label-resizer
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-hidden
+                  className="shrink-0 cursor-col-resize hover:bg-cyan-500/15 bg-zinc-900/80 border-l border-zinc-700/40"
+                  style={{ position: 'sticky', left: labelWidth, zIndex: 21, width: LABEL_RESIZER_W, height: rh }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    setLabelColumnDrag({ startX: e.clientX, startWidth: labelWidth })
+                  }}
+                />
 
                 {/* Timeline cell */}
-                <div className="relative" style={{ width: totalWidth, height: rh }}>
+                <div className="relative shrink-0" style={{ width: totalWidth, height: rh }}>
                   {/* Month grid lines */}
                   {monthHeaders.map((m) => (
                     <div
