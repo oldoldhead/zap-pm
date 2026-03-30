@@ -18,10 +18,42 @@ interface GanttChartProps {
 }
 
 const DAY_WIDTH = 5
-const ROW_HEIGHT = 44
+const MIN_ROW_HEIGHT = 44
+const LANE_HEIGHT = 28   // 每個分層的高度
+const LANE_PAD = 8       // 列上下各 4px 留白
 const LABEL_WIDTH = 210
 const HEADER_HEIGHT = 36
 const HANDLE_WIDTH = 7
+
+// 計算各階段所屬分層（避免重疊）
+function assignLanes(stages: { stageId: string; startDate: string | null; endDate: string | null }[]): Map<string, number> {
+  const laneMap = new Map<string, number>()
+  const laneEndDates: string[] = []
+  const valid = stages
+    .filter((s) => s.startDate && s.endDate)
+    .sort((a, b) => a.startDate!.localeCompare(b.startDate!))
+  for (const s of valid) {
+    let placed = false
+    for (let i = 0; i < laneEndDates.length; i++) {
+      if (s.startDate! >= laneEndDates[i]) {
+        laneMap.set(s.stageId, i)
+        laneEndDates[i] = s.endDate!
+        placed = true
+        break
+      }
+    }
+    if (!placed) {
+      laneMap.set(s.stageId, laneEndDates.length)
+      laneEndDates.push(s.endDate!)
+    }
+  }
+  return laneMap
+}
+
+function rowHeight(laneMap: Map<string, number>): number {
+  const numLanes = laneMap.size === 0 ? 1 : Math.max(...laneMap.values()) + 1
+  return Math.max(MIN_ROW_HEIGHT, LANE_HEIGHT * numLanes + LANE_PAD * 2)
+}
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr)
@@ -230,6 +262,10 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
             onUpdateStage(editPopover.projectId, editPopover.stageId, { name, startDate: start, endDate: end, colorIndex })
             setEditPopover(null)
           }}
+          onDelete={() => {
+            onDeleteStage(editPopover.projectId, editPopover.stageId)
+            setEditPopover(null)
+          }}
           onClose={() => setEditPopover(null)}
         />
       )}
@@ -251,32 +287,35 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
         {/* Fixed label panel */}
         <div className="shrink-0 z-10 bg-zinc-900" style={{ width: LABEL_WIDTH }}>
           <div style={{ height: HEADER_HEIGHT }} className="border-b border-zinc-700" />
-          {projects.map((project) => (
-            <div
-              key={project.id}
-              className="flex items-center gap-2 px-3 border-b border-zinc-800/50 group/row"
-              style={{ height: ROW_HEIGHT }}
-            >
-              <span className={`text-xs font-bold shrink-0 ${CATEGORY_TEXT_COLORS[project.category]}`}>
-                {project.category}
-              </span>
-              <span className="text-zinc-200 text-xs truncate flex-1">{project.name}</span>
-              {/* Add stage button */}
-              <button
-                className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-cyan-400 hover:bg-zinc-700 transition-colors opacity-0 group-hover/row:opacity-100"
-                title="新增階段"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                  setAddPopover({ projectId: project.id, x: rect.left, y: rect.bottom + 4 })
-                }}
+          {projects.map((project) => {
+            const laneMap = assignLanes(project.stages)
+            const rh = rowHeight(laneMap)
+            return (
+              <div
+                key={project.id}
+                className="flex items-center gap-2 px-3 border-b border-zinc-800/50 group/row"
+                style={{ height: rh }}
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                  <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
-            </div>
-          ))}
+                <span className={`text-xs font-bold shrink-0 ${CATEGORY_TEXT_COLORS[project.category]}`}>
+                  {project.category}
+                </span>
+                <span className="text-zinc-200 text-xs truncate flex-1">{project.name}</span>
+                <button
+                  className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-cyan-400 hover:bg-zinc-700 transition-colors opacity-0 group-hover/row:opacity-100"
+                  title="新增階段"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                    setAddPopover({ projectId: project.id, x: rect.left, y: rect.bottom + 4 })
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                    <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            )
+          })}
         </div>
 
         {/* Scrollable timeline */}
@@ -307,153 +346,146 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
             </div>
 
             {/* Project rows */}
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className="relative border-b border-zinc-800/50 hover:bg-zinc-800/20"
-                style={{ height: ROW_HEIGHT }}
-              >
-                {monthHeaders.map((m) => (
-                  <div key={m.label} className="absolute top-0 bottom-0 border-l border-zinc-800/40" style={{ left: m.left }} />
-                ))}
-                {showToday && (
-                  <div className="absolute top-0 bottom-0 w-px bg-cyan-400/20 z-0" style={{ left: todayLeft }} />
-                )}
+            {projects.map((project) => {
+              const laneMap = assignLanes(project.stages)
+              const rh = rowHeight(laneMap)
+              return (
+                <div
+                  key={project.id}
+                  className="relative border-b border-zinc-800/50 hover:bg-zinc-800/20"
+                  style={{ height: rh }}
+                >
+                  {monthHeaders.map((m) => (
+                    <div key={m.label} className="absolute top-0 bottom-0 border-l border-zinc-800/40" style={{ left: m.left }} />
+                  ))}
+                  {showToday && (
+                    <div className="absolute top-0 bottom-0 w-px bg-cyan-400/20 z-0" style={{ left: todayLeft }} />
+                  )}
 
-                {/* No stages hint */}
-                {project.stages.length === 0 && (
-                  <div className="absolute inset-0 flex items-center px-3">
-                    <span className="text-zinc-700 text-xs italic">尚無階段，點左側 + 新增</span>
-                  </div>
-                )}
-
-                {project.stages.map((stage, si) => {
-                  if (!stage.startDate || !stage.endDate) return null
-
-                  const { start: effStart, end: effEnd } = getEffectiveDates(
-                    project.id, stage.stageId, stage.startDate, stage.endDate
-                  )
-                  const left = dayOffset(effStart) * DAY_WIDTH
-                  const widthDays = Math.max(1, Math.ceil(
-                    (new Date(effEnd).getTime() - new Date(effStart).getTime()) / 86400000
-                  ) + 1)
-                  const width = widthDays * DAY_WIDTH
-                  const style = STAGE_PALETTE[(stage.colorIndex ?? si) % STAGE_PALETTE.length]
-                  const showLabel = width >= 32
-                  const isBeingResized = resizing?.projectId === project.id && resizing?.stageId === stage.stageId
-
-                  return (
-                    <div
-                      key={stage.stageId}
-                      className="absolute top-2 bottom-2 rounded group/bar"
-                      style={{
-                        left,
-                        width,
-                        backgroundColor: style.bg,
-                        opacity: isBeingResized ? 0.9 : 0.82,
-                        zIndex: 10,
-                        transition: resizing ? 'none' : 'opacity 0.1s',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (resizing) return
-                        setTooltip({
-                          x: e.clientX,
-                          y: e.clientY,
-                          text: `${stage.name}  ${formatDate(stage.startDate!)} → ${formatDate(stage.endDate!)}  ｜ 雙擊編輯`,
-                        })
-                      }}
-                      onMouseLeave={() => setTooltip(null)}
-                      onMouseMove={(e) => {
-                        if (resizing) return
-                        setTooltip((t) => t ? { ...t, x: e.clientX, y: e.clientY } : null)
-                      }}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation()
-                        setTooltip(null)
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                        setEditPopover({
-                          projectId: project.id,
-                          stageId: stage.stageId,
-                          stageName: stage.name,
-                          startDate: stage.startDate!,
-                          endDate: stage.endDate!,
-                          colorIndex: stage.colorIndex ?? si % STAGE_PALETTE.length,
-                          x: rect.left,
-                          y: rect.bottom + 6,
-                        })
-                      }}
-                    >
-                      {/* Left resize handle */}
-                      <div
-                        className="absolute top-0 bottom-0 left-0 z-20 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
-                        style={{ width: HANDLE_WIDTH, cursor: 'col-resize', backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: '4px 0 0 4px' }}
-                        onMouseDown={(e) => {
-                          e.stopPropagation()
-                          setTooltip(null)
-                          setResizing({
-                            projectId: project.id,
-                            stageId: stage.stageId,
-                            side: 'start',
-                            originalDate: stage.startDate!,
-                            startX: e.clientX,
-                            currentDate: stage.startDate!,
-                          })
-                          if (scrollRef.current) scrollRef.current.style.cursor = 'col-resize'
-                        }}
-                      >
-                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', lineHeight: 1 }}>⠿</span>
-                      </div>
-
-                      {/* Stage name label */}
-                      {showLabel && (
-                        <span
-                          className="absolute inset-0 flex items-center truncate pointer-events-none"
-                          style={{ color: style.text, fontSize: 11, paddingLeft: HANDLE_WIDTH + 2, paddingRight: HANDLE_WIDTH + 20 }}
-                        >
-                          {stage.name}
-                        </span>
-                      )}
-
-                      {/* Delete button */}
-                      <button
-                        className="absolute top-0 bottom-0 z-20 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
-                        style={{ right: HANDLE_WIDTH, width: 18, cursor: 'pointer' }}
-                        title="刪除此階段"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTooltip(null)
-                          onDeleteStage(project.id, stage.stageId)
-                        }}
-                      >
-                        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1 }}>×</span>
-                      </button>
-
-                      {/* Right resize handle */}
-                      <div
-                        className="absolute top-0 bottom-0 right-0 z-20 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
-                        style={{ width: HANDLE_WIDTH, cursor: 'col-resize', backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: '0 4px 4px 0' }}
-                        onMouseDown={(e) => {
-                          e.stopPropagation()
-                          setTooltip(null)
-                          setResizing({
-                            projectId: project.id,
-                            stageId: stage.stageId,
-                            side: 'end',
-                            originalDate: stage.endDate!,
-                            startX: e.clientX,
-                            currentDate: stage.endDate!,
-                          })
-                          if (scrollRef.current) scrollRef.current.style.cursor = 'col-resize'
-                        }}
-                      >
-                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', lineHeight: 1 }}>⠿</span>
-                      </div>
+                  {project.stages.length === 0 && (
+                    <div className="absolute inset-0 flex items-center px-3">
+                      <span className="text-zinc-700 text-xs italic">尚無階段，點左側 + 新增</span>
                     </div>
-                  )
-                })}
-              </div>
-            ))}
+                  )}
+
+                  {project.stages.map((stage, si) => {
+                    if (!stage.startDate || !stage.endDate) return null
+
+                    const lane = laneMap.get(stage.stageId) ?? 0
+                    const barTop = LANE_PAD + lane * LANE_HEIGHT + 2
+                    const barHeight = LANE_HEIGHT - 4
+
+                    const { start: effStart, end: effEnd } = getEffectiveDates(
+                      project.id, stage.stageId, stage.startDate, stage.endDate
+                    )
+                    const left = dayOffset(effStart) * DAY_WIDTH
+                    const widthDays = Math.max(1, Math.ceil(
+                      (new Date(effEnd).getTime() - new Date(effStart).getTime()) / 86400000
+                    ) + 1)
+                    const width = widthDays * DAY_WIDTH
+                    const palette = STAGE_PALETTE[(stage.colorIndex ?? si) % STAGE_PALETTE.length]
+                    const showLabel = width >= 32
+                    const isBeingResized = resizing?.projectId === project.id && resizing?.stageId === stage.stageId
+
+                    return (
+                      <div
+                        key={stage.stageId}
+                        className="absolute rounded group/bar"
+                        style={{
+                          left,
+                          top: barTop,
+                          width,
+                          height: barHeight,
+                          backgroundColor: palette.bg,
+                          opacity: isBeingResized ? 0.9 : 0.82,
+                          zIndex: 10,
+                          transition: resizing ? 'none' : 'opacity 0.1s',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (resizing) return
+                          setTooltip({
+                            x: e.clientX,
+                            y: e.clientY,
+                            text: `${stage.name}  ${formatDate(stage.startDate!)} → ${formatDate(stage.endDate!)}  ｜ 雙擊編輯／刪除`,
+                          })
+                        }}
+                        onMouseLeave={() => setTooltip(null)}
+                        onMouseMove={(e) => {
+                          if (resizing) return
+                          setTooltip((t) => t ? { ...t, x: e.clientX, y: e.clientY } : null)
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation()
+                          setTooltip(null)
+                          setEditPopover({
+                            projectId: project.id,
+                            stageId: stage.stageId,
+                            stageName: stage.name,
+                            startDate: stage.startDate!,
+                            endDate: stage.endDate!,
+                            colorIndex: stage.colorIndex ?? si % STAGE_PALETTE.length,
+                            x: e.clientX,
+                            y: e.clientY,
+                          })
+                        }}
+                      >
+                        {/* Left resize handle */}
+                        <div
+                          className="absolute top-0 bottom-0 left-0 z-20 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
+                          style={{ width: HANDLE_WIDTH, cursor: 'col-resize', backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: '4px 0 0 4px' }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation()
+                            setTooltip(null)
+                            setResizing({
+                              projectId: project.id,
+                              stageId: stage.stageId,
+                              side: 'start',
+                              originalDate: stage.startDate!,
+                              startX: e.clientX,
+                              currentDate: stage.startDate!,
+                            })
+                            if (scrollRef.current) scrollRef.current.style.cursor = 'col-resize'
+                          }}
+                        >
+                          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', lineHeight: 1 }}>⠿</span>
+                        </div>
+
+                        {/* Stage name label */}
+                        {showLabel && (
+                          <span
+                            className="absolute inset-0 flex items-center truncate pointer-events-none"
+                            style={{ color: palette.text, fontSize: 11, paddingLeft: HANDLE_WIDTH + 2, paddingRight: HANDLE_WIDTH + 4 }}
+                          >
+                            {stage.name}
+                          </span>
+                        )}
+
+                        {/* Right resize handle */}
+                        <div
+                          className="absolute top-0 bottom-0 right-0 z-20 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
+                          style={{ width: HANDLE_WIDTH, cursor: 'col-resize', backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: '0 4px 4px 0' }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation()
+                            setTooltip(null)
+                            setResizing({
+                              projectId: project.id,
+                              stageId: stage.stageId,
+                              side: 'end',
+                              originalDate: stage.endDate!,
+                              startX: e.clientX,
+                              currentDate: stage.endDate!,
+                            })
+                            if (scrollRef.current) scrollRef.current.style.cursor = 'col-resize'
+                          }}
+                        >
+                          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', lineHeight: 1 }}>⠿</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -491,10 +523,12 @@ function ColorPicker({ value, onChange }: { value: number; onChange: (i: number)
 function EditPopoverDialog({
   popover,
   onSave,
+  onDelete,
   onClose,
 }: {
   popover: EditPopover
   onSave: (name: string, start: string, end: string, colorIndex: number) => void
+  onDelete: () => void
   onClose: () => void
 }) {
   const [name, setName] = useState(popover.stageName)
@@ -517,10 +551,14 @@ function EditPopoverDialog({
   }, [onClose])
 
   const DIALOG_W = 264
-  const DIALOG_H = 290
+  const DIALOG_H = 360
   const left = Math.min(Math.max(8, popover.x), window.innerWidth - DIALOG_W - 8)
-  const fitsBelow = popover.y + DIALOG_H + 8 <= window.innerHeight
-  const top = fitsBelow ? popover.y : Math.max(8, popover.y - DIALOG_H - 8)
+  const topBelow = popover.y + 6
+  const topAbove = popover.y - DIALOG_H - 6
+  const top = Math.min(
+    Math.max(8, topBelow + DIALOG_H > window.innerHeight ? topAbove : topBelow),
+    window.innerHeight - DIALOG_H - 8
+  )
 
   return (
     <div
@@ -585,6 +623,16 @@ function EditPopoverDialog({
           取消
         </button>
       </div>
+
+      {/* Delete */}
+      <div className="mt-2 pt-2 border-t border-zinc-800">
+        <button
+          onClick={onDelete}
+          className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20 text-xs rounded-lg py-1.5 transition-colors"
+        >
+          刪除此階段
+        </button>
+      </div>
     </div>
   )
 }
@@ -624,10 +672,14 @@ function AddStageDialog({
   }, [onClose])
 
   const DIALOG_W = 264
-  const DIALOG_H = 310
+  const DIALOG_H = 380
   const left = Math.min(Math.max(8, x), window.innerWidth - DIALOG_W - 8)
-  const fitsBelow = y + DIALOG_H + 8 <= window.innerHeight
-  const top = fitsBelow ? y : Math.max(8, y - DIALOG_H - 8)
+  const topBelow = y + 4
+  const topAbove = y - DIALOG_H - 4
+  const top = Math.min(
+    Math.max(8, topBelow + DIALOG_H > window.innerHeight ? topAbove : topBelow),
+    window.innerHeight - DIALOG_H - 8
+  )
 
   return (
     <div
