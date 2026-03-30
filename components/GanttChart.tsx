@@ -19,7 +19,7 @@ interface GanttChartProps {
 
 const DAY_WIDTH = 5
 const MIN_ROW_HEIGHT = 34
-const LANE_HEIGHT = 22
+const LANE_HEIGHT = 28
 const LANE_PAD = 6
 const LABEL_WIDTH = 210
 const HEADER_HEIGHT = 36
