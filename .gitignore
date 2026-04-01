@@ -20,6 +20,9 @@
 # production
 /build
 
+# Notion / Firestore 遷移用快照（勿提交）
+data/notion-migration-*.json
+
 # misc
 .DS_Store
 *.pem
