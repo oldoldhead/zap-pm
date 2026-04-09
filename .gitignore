@@ -22,6 +22,7 @@
 
 # Notion / Firestore 遷移用快照（勿提交）
 data/notion-migration-*.json
+data/jinbaoshan-gantt-export.csv
 
 # misc
 .DS_Store

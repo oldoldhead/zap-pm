@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "export:jinbaoshan": "node scripts/export-jinbaoshan-gantt-csv.mjs"
   },
   "dependencies": {
     "@notionhq/client": "^2.3.0",
