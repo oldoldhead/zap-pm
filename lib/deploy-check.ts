@@ -4,4 +4,4 @@
  * 若線上仍為舊字串，代表尚未部署成功或瀏覽器快取。
  */
 export const CLIENT_DEPLOY_DATE = '2026-03-30'
-export const CLIENT_DEPLOY_TIME = '21:05'
+export const CLIENT_DEPLOY_TIME = '21:35'

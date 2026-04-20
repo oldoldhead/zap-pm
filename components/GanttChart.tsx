@@ -41,6 +41,28 @@ function readViewportWidth(): number {
   return Math.max(1, Math.round(vv?.width ?? window.innerWidth))
 }
 
+function readViewportHeight(): number {
+  if (typeof window === 'undefined') return 800
+  const vv = window.visualViewport
+  return Math.max(1, Math.round(vv?.height ?? window.innerHeight))
+}
+
+/**
+ * 是否為「手機式」甘特左欄（1/3 寬、僅專案名等）。
+ * 橫式手機常出現寬度 ≥1024（例如 1280×720），僅用寬度會誤判成桌機，故一併看短邊與方向。
+ */
+function isPhoneLikeGanttLayout(w: number, h: number): boolean {
+  const minSide = Math.min(w, h)
+  if (minSide < 600) return true
+  if (w > h && minSide < 780) return true
+  return false
+}
+
+function shouldUseDesktopGanttLabelUi(w: number, h: number): boolean {
+  if (isPhoneLikeGanttLayout(w, h)) return false
+  return w >= VIEWPORT_DESKTOP_LABEL_UI_MIN
+}
+
 // 計算各階段所屬分層（避免重疊）
 function assignLanes(stages: { stageId: string; startDate: string | null; endDate: string | null }[]): Map<string, number> {
   const laneMap = new Map<string, number>()
@@ -159,11 +181,12 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
     return Math.min(LABEL_WIDTH_MAX, Math.max(LABEL_WIDTH_MIN, n))
   })
   const [labelColumnDrag, setLabelColumnDrag] = useState<LabelColumnDragState | null>(null)
-  /** true = 桌機版左欄 UI（分類／狀態／拖曳）；false = 手機僅專案名、緊湊欄寬 */
+  /** true = 桌機版左欄 UI（分類／狀態／拖曳）；false = 手機（含橫式）左欄 1/3、僅專案名可橫滑 */
   const [viewportWideForLabelUi, setViewportWideForLabelUi] = useState(true)
 
   useLayoutEffect(() => {
-    const sync = () => setViewportWideForLabelUi(readViewportWidth() >= VIEWPORT_DESKTOP_LABEL_UI_MIN)
+    const sync = () =>
+      setViewportWideForLabelUi(shouldUseDesktopGanttLabelUi(readViewportWidth(), readViewportHeight()))
     sync()
     window.addEventListener('resize', sync)
     window.addEventListener('orientationchange', sync)
