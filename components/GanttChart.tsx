@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
+import { useRef, useState, useCallback, useMemo, useEffect, useLayoutEffect } from 'react'
 import { Project, CATEGORY_TEXT_COLORS, STAGE_PALETTE, STATUS_COLORS } from '@/lib/types'
 
 interface UpdatePayload {
@@ -28,6 +28,19 @@ const HEADER_HEIGHT = 36
 const HANDLE_WIDTH = 7
 const LABEL_RESIZER_W = 6
 const ZINC_900 = '#18181b'
+
+/**
+ * 左欄 sticky 僅在「夠寬的視窗」啟用（對齊 Tailwind `lg` = 1024px）。
+ * Chrome 手機若開「電腦版網站」，viewport 常為 ~980px，(max-width:767px) 媒體查詢不會成立，
+ * 必須用 visualViewport / innerWidth 判斷。
+ */
+const LABEL_COL_FREEZE_MIN_WIDTH = 1024
+
+function readViewportWidth(): number {
+  if (typeof window === 'undefined') return LABEL_COL_FREEZE_MIN_WIDTH
+  const vv = window.visualViewport
+  return Math.max(1, Math.round(vv?.width ?? window.innerWidth))
+}
 
 // 計算各階段所屬分層（避免重疊）
 function assignLanes(stages: { stageId: string; startDate: string | null; endDate: string | null }[]): Map<string, number> {
@@ -147,6 +160,24 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
     return Math.min(LABEL_WIDTH_MAX, Math.max(LABEL_WIDTH_MIN, n))
   })
   const [labelColumnDrag, setLabelColumnDrag] = useState<LabelColumnDragState | null>(null)
+  /** 桌機（寬度 ≥ lg）凍結左欄；其餘改為一般流式 */
+  const [freezeLabelColumn, setFreezeLabelColumn] = useState(true)
+
+  useLayoutEffect(() => {
+    const sync = () => setFreezeLabelColumn(readViewportWidth() >= LABEL_COL_FREEZE_MIN_WIDTH)
+    sync()
+    window.addEventListener('resize', sync)
+    window.addEventListener('orientationchange', sync)
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', sync)
+    vv?.addEventListener('scroll', sync)
+    return () => {
+      window.removeEventListener('resize', sync)
+      window.removeEventListener('orientationchange', sync)
+      vv?.removeEventListener('resize', sync)
+      vv?.removeEventListener('scroll', sync)
+    }
+  }, [])
 
   const { startDate, totalDays } = useMemo(() => {
     const allDates: Date[] = []
@@ -358,7 +389,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
       {/* ── Single scrollable container (horizontal + vertical) ── */}
       <div
         ref={scrollRef}
-        className="max-h-[min(68dvh,560px)] md:max-h-[75vh] touch-pan-x touch-pan-y overscroll-x-contain overscroll-y-contain [-webkit-overflow-scrolling:touch]"
+        className="gantt-scroll-host max-h-[min(68dvh,560px)] md:max-h-[75vh] touch-pan-x touch-pan-y overscroll-x-contain overscroll-y-contain [-webkit-overflow-scrolling:touch]"
         style={{ overflowX: 'auto', overflowY: 'auto', cursor: 'grab' }}
         onMouseDown={onPanDown}
         onMouseMove={onPanMove}
@@ -375,8 +406,14 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
           >
             {/* Corner cell – sticky left too */}
             <div
-              className="shrink-0 flex items-center px-3 border-r border-zinc-700"
-              style={{ position: 'sticky', left: 0, zIndex: 31, width: labelWidth, background: ZINC_900 }}
+              className="gantt-sticky-label shrink-0 flex items-center px-3 border-r border-zinc-700"
+              style={{
+                ...(freezeLabelColumn
+                  ? { position: 'sticky' as const, left: 0, zIndex: 31 }
+                  : { position: 'relative' as const, zIndex: 31 }),
+                width: labelWidth,
+                background: ZINC_900,
+              }}
             >
               <span className="text-zinc-500 text-xs font-medium">專案</span>
             </div>
@@ -386,8 +423,14 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
               aria-orientation="vertical"
               aria-label="調整專案欄寬度"
               title="拖曳調整專案欄寬度"
-              className="shrink-0 cursor-col-resize hover:bg-cyan-500/20 bg-zinc-900/80 border-l border-zinc-600/50"
-              style={{ position: 'sticky', left: labelWidth, zIndex: 34, width: LABEL_RESIZER_W, alignSelf: 'stretch' }}
+              className="gantt-sticky-resizer shrink-0 cursor-col-resize hover:bg-cyan-500/20 bg-zinc-900/80 border-l border-zinc-600/50"
+              style={{
+                ...(freezeLabelColumn
+                  ? { position: 'sticky' as const, left: labelWidth, zIndex: 34 }
+                  : { position: 'relative' as const, zIndex: 34 }),
+                width: LABEL_RESIZER_W,
+                alignSelf: 'stretch',
+              }}
               onMouseDown={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
@@ -423,8 +466,15 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
               >
                 {/* Label cell – sticky left；單行、欄寬依最長名稱動態加寬 */}
                 <div
-                  className="shrink-0 flex items-center gap-2 min-w-0 px-3 border-r border-zinc-800/50 box-border"
-                  style={{ position: 'sticky', left: 0, zIndex: 20, width: labelWidth, background: ZINC_900, height: rh }}
+                  className="gantt-sticky-label shrink-0 flex items-center gap-2 min-w-0 px-3 border-r border-zinc-800/50 box-border"
+                  style={{
+                    ...(freezeLabelColumn
+                      ? { position: 'sticky' as const, left: 0, zIndex: 20 }
+                      : { position: 'relative' as const, zIndex: 20 }),
+                    width: labelWidth,
+                    background: ZINC_900,
+                    height: rh,
+                  }}
                 >
                   <span className={`text-xs font-bold shrink-0 ${CATEGORY_TEXT_COLORS[project.category]}`}>
                     {project.category}
@@ -455,8 +505,14 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                   role="separator"
                   aria-orientation="vertical"
                   aria-hidden
-                  className="shrink-0 cursor-col-resize hover:bg-cyan-500/15 bg-zinc-900/80 border-l border-zinc-700/40"
-                  style={{ position: 'sticky', left: labelWidth, zIndex: 21, width: LABEL_RESIZER_W, height: rh }}
+                  className="gantt-sticky-resizer shrink-0 cursor-col-resize hover:bg-cyan-500/15 bg-zinc-900/80 border-l border-zinc-700/40"
+                  style={{
+                    ...(freezeLabelColumn
+                      ? { position: 'sticky' as const, left: labelWidth, zIndex: 21 }
+                      : { position: 'relative' as const, zIndex: 21 }),
+                    width: LABEL_RESIZER_W,
+                    height: rh,
+                  }}
                   onMouseDown={(e) => {
                     e.stopPropagation()
                     e.preventDefault()

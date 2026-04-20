@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body className="min-h-[100dvh] bg-[#0f0f0f] flex flex-col md:flex-row">
         <Sidebar />
-        <main className="flex-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+        <main className="flex-1 min-h-0 min-w-0 max-w-full overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-0">
           {children}
         </main>
         <MobileNav />
