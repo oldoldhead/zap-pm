@@ -29,20 +29,17 @@ const HANDLE_WIDTH = 7
 const LABEL_RESIZER_W = 6
 const ZINC_900 = '#18181b'
 
-/** 此寬度以上：顯示分類／狀態／+、可拖曳欄寬，欄寬沿用 LABEL_WIDTH_MIN 起跳；以下：僅專案名、欄寬依最長名稱緊湊計算 */
+/** 此寬度以上：顯示分類／狀態／+、可拖曳欄寬；以下：左欄固定螢幕寬 1/3，專案名於欄內橫向捲動 */
 const VIEWPORT_DESKTOP_LABEL_UI_MIN = 1024
+
+/** 手機左欄寬度 = 視窗寬的 1/3（與 minWidth calc 一致） */
+const MOBILE_LABEL_COLUMN_VW = '33.333vw'
 
 function readViewportWidth(): number {
   if (typeof window === 'undefined') return VIEWPORT_DESKTOP_LABEL_UI_MIN
   const vv = window.visualViewport
   return Math.max(1, Math.round(vv?.width ?? window.innerWidth))
 }
-
-/** 手機版專案欄：僅文字，左右 padding 與 text-xs 估寬 */
-const LABEL_COMPACT_H_PAD = 24
-const LABEL_COMPACT_CHAR_PX = 12
-const LABEL_COMPACT_SAFETY = 8
-const LABEL_COMPACT_MIN = 48
 
 // 計算各階段所屬分層（避免重疊）
 function assignLanes(stages: { stageId: string; startDate: string | null; endDate: string | null }[]): Map<string, number> {
@@ -220,25 +217,19 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
     return Math.max(LABEL_WIDTH_MIN, Math.ceil(CHROME + maxChars * CHAR_PX + SAFETY))
   }, [projects])
 
-  /** 手機：欄寬僅依最長專案名稱（不含分類／狀態預留） */
-  const labelWidthCompact = useMemo(() => {
-    let maxChars = 0
-    for (const p of projects) {
-      maxChars = Math.max(maxChars, [...p.name].length)
-    }
-    return Math.max(
-      LABEL_COMPACT_MIN,
-      Math.ceil(LABEL_COMPACT_H_PAD + maxChars * LABEL_COMPACT_CHAR_PX + LABEL_COMPACT_SAFETY)
-    )
-  }, [projects])
-
   const labelWidth = Math.min(
     LABEL_WIDTH_MAX,
     Math.max(LABEL_WIDTH_MIN, labelPaneWidthUser ?? labelWidthSuggested)
   )
 
-  const effectiveLabelWidth = viewportWideForLabelUi ? labelWidth : labelWidthCompact
+  /** 桌機為 px；手機左欄為 1/3 視窗寬 */
+  const effectiveLabelWidth: number | string = viewportWideForLabelUi ? labelWidth : MOBILE_LABEL_COLUMN_VW
   const showLabelResizer = viewportWideForLabelUi
+
+  /** 甘特內層總寬：手機為 calc(33.333vw + 時程 px) */
+  const ganttInnerMinWidth = viewportWideForLabelUi
+    ? labelWidth + (showLabelResizer ? LABEL_RESIZER_W : 0) + totalWidth
+    : `calc(${MOBILE_LABEL_COLUMN_VW} + ${totalWidth}px)`
 
   useEffect(() => {
     if (!scrollRef.current) return
@@ -414,12 +405,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
         onMouseLeave={onPanUp}
       >
         {/* Inner width: label + timeline */}
-        <div
-          style={{
-            minWidth: effectiveLabelWidth + (showLabelResizer ? LABEL_RESIZER_W : 0) + totalWidth,
-            position: 'relative',
-          }}
-        >
+        <div style={{ minWidth: ganttInnerMinWidth, position: 'relative' }}>
 
           {/* ── Sticky month-header row ── */}
           <div
@@ -449,7 +435,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                 className="gantt-sticky-resizer shrink-0 cursor-col-resize hover:bg-cyan-500/20 bg-zinc-900/80 border-l border-zinc-600/50"
                 style={{
                   position: 'sticky',
-                  left: effectiveLabelWidth,
+                  left: labelWidth,
                   zIndex: 34,
                   width: LABEL_RESIZER_W,
                   alignSelf: 'stretch',
@@ -488,9 +474,9 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                 className="flex border-b border-zinc-800/50 hover:bg-zinc-800/10 group/row"
                 style={{ height: rh }}
               >
-                {/* Label cell – sticky left；單行、欄寬依最長名稱動態加寬 */}
+                {/* Label cell – sticky left；桌機依欄寬，手機固定 1/3 螢幕寬、名稱欄內橫向捲動 */}
                 <div
-                  className="gantt-sticky-label shrink-0 flex items-center gap-2 min-w-0 px-3 border-r border-zinc-800/50 box-border"
+                  className={`gantt-sticky-label shrink-0 flex items-center min-w-0 border-r border-zinc-800/50 box-border ${viewportWideForLabelUi ? 'gap-2 px-3' : 'px-2'}`}
                   style={{
                     position: 'sticky',
                     left: 0,
@@ -512,12 +498,22 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                       {project.status}
                     </span>
                   )}
-                  <span
-                    className={`text-zinc-200 text-xs truncate min-w-0 ${viewportWideForLabelUi ? 'flex-1' : 'w-full'}`}
-                    title={project.name}
-                  >
-                    {project.name}
-                  </span>
+                  {viewportWideForLabelUi ? (
+                    <span className="text-zinc-200 text-xs truncate min-w-0 flex-1" title={project.name}>
+                      {project.name}
+                    </span>
+                  ) : (
+                    <div
+                      className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch] flex items-center"
+                      role="region"
+                      aria-label="專案名稱，可左右滑動檢視"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <span className="text-zinc-200 text-xs whitespace-nowrap" title={project.name}>
+                        {project.name}
+                      </span>
+                    </div>
+                  )}
                   {viewportWideForLabelUi && (
                     <button
                       className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-cyan-400 hover:bg-zinc-700 transition-colors opacity-0 group-hover/row:opacity-100"
@@ -544,7 +540,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                     className="gantt-sticky-resizer shrink-0 cursor-col-resize hover:bg-cyan-500/15 bg-zinc-900/80 border-l border-zinc-700/40"
                     style={{
                       position: 'sticky',
-                      left: effectiveLabelWidth,
+                      left: labelWidth,
                       zIndex: 21,
                       width: LABEL_RESIZER_W,
                       height: rh,
