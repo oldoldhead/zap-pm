@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, GanttChartSquare, Users } from 'lucide-react'
-import { CLIENT_DEPLOY_STAMP } from '@/lib/deploy-check'
+import { CLIENT_DEPLOY_DATE, CLIENT_DEPLOY_TIME } from '@/lib/deploy-check'
 
 const items = [
   { href: '/', label: '儀表板', icon: LayoutDashboard },
@@ -38,7 +38,9 @@ export default function MobileNav() {
         })}
       </div>
       <div className="text-center pt-0.5 pb-0.5" aria-hidden>
-        <span className="text-[9px] text-zinc-600 tabular-nums">前端 {CLIENT_DEPLOY_STAMP}</span>
+        <span className="text-[9px] text-zinc-600 tabular-nums">
+          前端-{CLIENT_DEPLOY_DATE}-{CLIENT_DEPLOY_TIME}
+        </span>
       </div>
     </nav>
   )
