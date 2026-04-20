@@ -58,7 +58,7 @@ export async function GET() {
 
 // ── POST：新增階段 ────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
-  const { projectId, name, startDate, endDate, colorIndex } = await request.json()
+  const { projectId, name, startDate, endDate, colorIndex, laneIndex } = await request.json()
   if (!projectId || !name) {
     return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
   }
@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
     endDate: endDate ?? null,
     assignee: null,
     ...(colorIndex !== undefined && { colorIndex }),
+    ...(typeof laneIndex === 'number' && Number.isFinite(laneIndex) ? { laneIndex } : {}),
   }
 
   if (USE_FIREBASE) {
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
 
 // ── PATCH：更新階段 ───────────────────────────────────────────────────────────
 export async function PATCH(request: NextRequest) {
-  const { projectId, stageId, name, startDate, endDate, colorIndex } = await request.json()
+  const { projectId, stageId, name, startDate, endDate, colorIndex, laneIndex } = await request.json()
   if (!projectId || !stageId) {
     return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
   }
@@ -93,13 +94,19 @@ export async function PATCH(request: NextRequest) {
   const applyUpdate = (stages: ProjectStage[]) =>
     stages.map((s) => {
       if (s.stageId !== stageId) return s
-      return {
+      const base: ProjectStage = {
         ...s,
         ...(name !== undefined && { name }),
         ...(startDate !== undefined && { startDate }),
         ...(endDate !== undefined && { endDate }),
         ...(colorIndex !== undefined && { colorIndex }),
       }
+      if (laneIndex === undefined) return base
+      if (laneIndex === null) {
+        const { laneIndex: _r, ...rest } = base
+        return rest as ProjectStage
+      }
+      return { ...base, laneIndex }
     })
 
   if (USE_FIREBASE) {

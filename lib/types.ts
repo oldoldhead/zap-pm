@@ -67,6 +67,8 @@ export interface ProjectStage {
   endDate: string | null
   assignee: TeamMember | null
   colorIndex?: number   // 對應 STAGE_PALETTE 的索引，未設定則依順序自動分配
+  /** 手動指定列（0 起算）；未設定則依日期自動堆疊 */
+  laneIndex?: number | null
 }
 
 export interface Project {

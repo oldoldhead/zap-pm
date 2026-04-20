@@ -1,13 +1,14 @@
 'use client'
 
 import { useRef, useState, useCallback, useMemo, useEffect, useLayoutEffect } from 'react'
-import { Project, CATEGORY_TEXT_COLORS, STAGE_PALETTE, STATUS_COLORS } from '@/lib/types'
+import { Project, ProjectStage, CATEGORY_TEXT_COLORS, STAGE_PALETTE, STATUS_COLORS } from '@/lib/types'
 
 interface UpdatePayload {
   name?: string
   startDate?: string
   endDate?: string
   colorIndex?: number
+  laneIndex?: number | null
 }
 
 interface GanttChartProps {
@@ -15,6 +16,7 @@ interface GanttChartProps {
   onUpdateStage: (projectId: string, stageId: string, updates: UpdatePayload) => void
   onAddStage: (projectId: string, name: string, startDate: string, endDate: string, colorIndex: number) => void
   onDeleteStage: (projectId: string, stageId: string) => void
+  onDuplicateStage: (projectId: string, source: ProjectStage) => void
 }
 
 const DAY_WIDTH = 5
@@ -63,14 +65,28 @@ function shouldUseDesktopGanttLabelUi(w: number, h: number): boolean {
   return w >= VIEWPORT_DESKTOP_LABEL_UI_MIN
 }
 
-// 計算各階段所屬分層（避免重疊）
-function assignLanes(stages: { stageId: string; startDate: string | null; endDate: string | null }[]): Map<string, number> {
+/** 先套用有 laneIndex 的列，其餘階段再自動塞入不重疊的列 */
+function assignLanesMerged(stages: ProjectStage[]): Map<string, number> {
   const laneMap = new Map<string, number>()
-  const laneEndDates: string[] = []
   const valid = stages
     .filter((s) => s.startDate && s.endDate)
     .sort((a, b) => a.startDate!.localeCompare(b.startDate!))
+  const laneEndDates: string[] = []
+
   for (const s of valid) {
+    if (s.laneIndex != null && s.laneIndex >= 0) {
+      const L = s.laneIndex
+      while (laneEndDates.length <= L) {
+        laneEndDates.push('1970-01-01')
+      }
+      laneMap.set(s.stageId, L)
+      const prev = laneEndDates[L] ?? '1970-01-01'
+      if (s.endDate! > prev) laneEndDates[L] = s.endDate!
+    }
+  }
+
+  for (const s of valid) {
+    if (s.laneIndex != null && s.laneIndex >= 0) continue
     let placed = false
     for (let i = 0; i < laneEndDates.length; i++) {
       if (s.startDate! >= laneEndDates[i]) {
@@ -163,10 +179,19 @@ function getMonthHeaders(startDate: Date, totalDays: number) {
   return headers
 }
 
-export default function GanttChart({ projects, onUpdateStage, onAddStage, onDeleteStage }: GanttChartProps) {
+interface LaneDragState {
+  projectId: string
+  stageId: string
+  startY: number
+  originalLane: number
+}
+
+export default function GanttChart({ projects, onUpdateStage, onAddStage, onDeleteStage, onDuplicateStage }: GanttChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const panRef = useRef<{ active: boolean; startX: number; scrollLeft: number }>({ active: false, startX: 0, scrollLeft: 0 })
+  const didInitialGanttScroll = useRef(false)
+  const [laneDrag, setLaneDrag] = useState<LaneDragState | null>(null)
   const [resizing, setResizing] = useState<ResizeState | null>(null)
   const [editPopover, setEditPopover] = useState<EditPopover | null>(null)
   const [addPopover, setAddPopover] = useState<AddPopover | null>(null)
@@ -254,8 +279,11 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
     ? labelWidth + (showLabelResizer ? LABEL_RESIZER_W : 0) + totalWidth
     : `calc(${MOBILE_LABEL_COLUMN_VW} + ${totalWidth}px)`
 
+  /** 僅首次有資料時捲到「今天」附近；新增／編輯後不要自動跳到最左 */
   useEffect(() => {
-    if (!scrollRef.current) return
+    if (!scrollRef.current || didInitialGanttScroll.current) return
+    if (projects.length === 0) return
+    didInitialGanttScroll.current = true
     const today = new Date()
     const todayLeft = Math.ceil((today.getTime() - startDate.getTime()) / 86400000) * DAY_WIDTH
     const containerWidth = scrollRef.current.clientWidth
@@ -329,17 +357,33 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
     }
   }, [labelColumnDrag])
 
+  // 桌機：上下拖曳換列（lane）
+  useEffect(() => {
+    if (!laneDrag) return
+    const onUp = (e: MouseEvent) => {
+      const dy = e.clientY - laneDrag.startY
+      const deltaLanes = Math.round(dy / LANE_HEIGHT)
+      const newLane = Math.max(0, laneDrag.originalLane + deltaLanes)
+      if (newLane !== laneDrag.originalLane) {
+        onUpdateStage(laneDrag.projectId, laneDrag.stageId, { laneIndex: newLane })
+      }
+      setLaneDrag(null)
+    }
+    window.addEventListener('mouseup', onUp)
+    return () => window.removeEventListener('mouseup', onUp)
+  }, [laneDrag, onUpdateStage])
+
   const onPanDown = useCallback((e: React.MouseEvent) => {
-    if (resizing) return
+    if (resizing || laneDrag) return
     panRef.current = { active: true, startX: e.clientX, scrollLeft: scrollRef.current?.scrollLeft ?? 0 }
     if (scrollRef.current) scrollRef.current.style.cursor = 'grabbing'
-  }, [resizing])
+  }, [resizing, laneDrag])
 
   const onPanMove = useCallback((e: React.MouseEvent) => {
-    if (!panRef.current.active || resizing) return
+    if (!panRef.current.active || resizing || laneDrag) return
     const dx = e.clientX - panRef.current.startX
     if (scrollRef.current) scrollRef.current.scrollLeft = panRef.current.scrollLeft - dx
-  }, [resizing])
+  }, [resizing, laneDrag])
 
   const onPanUp = useCallback(() => {
     panRef.current.active = false
@@ -395,6 +439,14 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
           onSave={(name, start, end, colorIndex) => {
             onUpdateStage(editPopover.projectId, editPopover.stageId, { name, startDate: start, endDate: end, colorIndex })
             setEditPopover(null)
+          }}
+          onDuplicate={() => {
+            const p = projects.find((x) => x.id === editPopover.projectId)
+            const st = p?.stages.find((s) => s.stageId === editPopover.stageId)
+            if (st) {
+              onDuplicateStage(editPopover.projectId, st)
+              setEditPopover(null)
+            }
           }}
           onDelete={() => {
             onDeleteStage(editPopover.projectId, editPopover.stageId)
@@ -489,7 +541,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
 
           {/* ── Project rows ── */}
           {projects.map((project) => {
-            const laneMap = assignLanes(project.stages)
+            const laneMap = assignLanesMerged(project.stages)
             const rh = rowHeight(laneMap)
             return (
               <div
@@ -639,7 +691,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                           setTooltip({
                             x: e.clientX,
                             y: e.clientY,
-                            text: `${stage.name}  ${formatDate(stage.startDate!)} → ${formatDate(stage.endDate!)}  ｜ 雙擊編輯／刪除`,
+                            text: `${stage.name}  ${formatDate(stage.startDate!)} → ${formatDate(stage.endDate!)}  ｜ 雙擊編輯／複製；上方握把拖曳換列`,
                           })
                         }}
                         onMouseLeave={() => setTooltip(null)}
@@ -662,6 +714,26 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                           })
                         }}
                       >
+                        {viewportWideForLabelUi && (
+                          <div
+                            className="absolute left-1/2 top-0 z-30 flex h-3 w-14 -translate-x-1/2 cursor-ns-resize items-start justify-center rounded-sm bg-black/25 pt-0.5 opacity-0 hover:opacity-100 group-hover/bar:opacity-90"
+                            title="拖曳上下以換列"
+                            onMouseDown={(e) => {
+                              e.stopPropagation()
+                              e.preventDefault()
+                              setTooltip(null)
+                              const currentLane = laneMap.get(stage.stageId) ?? 0
+                              setLaneDrag({
+                                projectId: project.id,
+                                stageId: stage.stageId,
+                                startY: e.clientY,
+                                originalLane: currentLane,
+                              })
+                            }}
+                          >
+                            <span className="pointer-events-none text-[9px] leading-none text-white/50">↕</span>
+                          </div>
+                        )}
                         {/* Left resize handle */}
                         <div
                           className="absolute top-0 bottom-0 left-0 z-20 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
@@ -756,11 +828,13 @@ function ColorPicker({ value, onChange }: { value: number; onChange: (i: number)
 function EditPopoverDialog({
   popover,
   onSave,
+  onDuplicate,
   onDelete,
   onClose,
 }: {
   popover: EditPopover
   onSave: (name: string, start: string, end: string, colorIndex: number) => void
+  onDuplicate: () => void
   onDelete: () => void
   onClose: () => void
 }) {
@@ -854,6 +928,16 @@ function EditPopoverDialog({
           className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-sm rounded-lg py-1.5 transition-colors"
         >
           取消
+        </button>
+      </div>
+
+      <div className="mt-2 pt-2 border-t border-zinc-800">
+        <button
+          type="button"
+          onClick={onDuplicate}
+          className="w-full text-cyan-400/90 hover:text-cyan-300 hover:bg-cyan-950/40 text-xs rounded-lg py-1.5 transition-colors"
+        >
+          複製此階段（同名加「複本」、日期與顏色相同）
         </button>
       </div>
 

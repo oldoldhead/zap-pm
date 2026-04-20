@@ -96,7 +96,13 @@ export default function GanttPage() {
   const handleUpdateStage = useCallback(async (
     projectId: string,
     stageId: string,
-    updates: { name?: string; startDate?: string; endDate?: string },
+    updates: {
+      name?: string
+      startDate?: string
+      endDate?: string
+      colorIndex?: number
+      laneIndex?: number | null
+    },
   ) => {
     // Optimistic update
     setStagesMap((prev) => ({
@@ -112,6 +118,48 @@ export default function GanttPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, stageId, ...updates }),
       })
+      setSyncStatus('saved')
+      setTimeout(() => setSyncStatus('idle'), 2000)
+    } catch {
+      setSyncStatus('error')
+      setTimeout(() => setSyncStatus('idle'), 3000)
+    }
+  }, [])
+
+  // ── Duplicate stage ─────────────────────────────────────────────────────────
+  const handleDuplicateStage = useCallback(async (projectId: string, src: ProjectStage) => {
+    if (!src.startDate || !src.endDate) return
+    const name = `${src.name} (複本)`
+    setSyncStatus('saving')
+    try {
+      const res = await fetch('/api/stages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          name,
+          startDate: src.startDate,
+          endDate: src.endDate,
+          colorIndex: src.colorIndex,
+          ...(src.laneIndex != null && src.laneIndex >= 0 ? { laneIndex: src.laneIndex } : {}),
+        }),
+      })
+      const { stageId } = await res.json()
+      setStagesMap((prev) => ({
+        ...prev,
+        [projectId]: [
+          ...(prev[projectId] ?? []),
+          {
+            stageId,
+            name,
+            startDate: src.startDate,
+            endDate: src.endDate,
+            assignee: null,
+            colorIndex: src.colorIndex,
+            ...(src.laneIndex != null && src.laneIndex >= 0 ? { laneIndex: src.laneIndex } : {}),
+          },
+        ],
+      }))
       setSyncStatus('saved')
       setTimeout(() => setSyncStatus('idle'), 2000)
     } catch {
@@ -159,7 +207,7 @@ export default function GanttPage() {
               今天
             </span>
             <span className="hidden lg:inline">游標移到階段列 → 出現 <span className="text-zinc-400 font-medium">＋</span> 可新增階段</span>
-            <span className="hidden xl:inline">雙擊階段條 → 編輯名稱／日期</span>
+            <span className="hidden xl:inline">雙擊階段條 → 編輯／複製；條頂端 ↕ 拖曳換列</span>
             <span className="lg:hidden text-zinc-600">＋ 新增 · 雙擊編輯 · 左右滑動看時程</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -192,6 +240,7 @@ export default function GanttPage() {
             onUpdateStage={handleUpdateStage}
             onAddStage={handleAddStage}
             onDeleteStage={handleDeleteStage}
+            onDuplicateStage={handleDuplicateStage}
           />
         )}
       </div>
