@@ -36,14 +36,14 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
     filters.search
 
   return (
-    <div className="flex flex-wrap gap-3 items-center">
+    <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
       {/* Search */}
       <input
         type="text"
         placeholder="搜尋專案..."
         value={filters.search}
         onChange={(e) => onChange({ ...filters, search: e.target.value })}
-        className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-lg px-3 py-2 w-48 focus:outline-none focus:border-cyan-500 placeholder-zinc-500"
+        className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-lg px-3 py-2 w-full min-w-0 sm:w-48 focus:outline-none focus:border-cyan-500 placeholder-zinc-500"
       />
 
       {/* Status multi-select toggle buttons */}

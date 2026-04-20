@@ -35,12 +35,12 @@ export default function ResourcesPage() {
 
   if (loading) {
     return (
-      <div className="p-6 text-zinc-500 text-sm">載入中...</div>
+      <div className="p-4 sm:p-6 text-zinc-500 text-sm">載入中...</div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 pb-2 sm:pb-0">
       <div>
         <h1 className="text-xl font-semibold text-white">人力資源</h1>
         <p className="text-zinc-500 text-sm mt-1">人員任務分配一覽</p>
@@ -100,7 +100,7 @@ export default function ResourcesPage() {
                     const stageIdx = STAGE_NAMES.indexOf(w.stage as (typeof STAGE_NAMES)[number])
                     const stageDotColors = ['bg-cyan-500', 'bg-blue-500', 'bg-violet-500', 'bg-fuchsia-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500']
                     return (
-                      <div key={i} className={`px-4 py-3 flex items-center gap-3 ${ongoing ? 'bg-cyan-500/5' : ''}`}>
+                      <div key={i} className={`px-3 sm:px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 ${ongoing ? 'bg-cyan-500/5' : ''}`}>
                         <span className={`w-2 h-2 rounded-full shrink-0 ${stageDotColors[stageIdx] ?? 'bg-zinc-500'}`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -115,7 +115,7 @@ export default function ResourcesPage() {
                             <span className="text-zinc-500 text-xs">{w.startDate} ~ {w.endDate}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
                           <span className={`text-xs px-1.5 py-0.5 rounded-full ${STATUS_COLORS[w.project.status]}`}>
                             {w.project.status}
                           </span>

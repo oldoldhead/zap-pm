@@ -358,7 +358,8 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
       {/* ── Single scrollable container (horizontal + vertical) ── */}
       <div
         ref={scrollRef}
-        style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '75vh', cursor: 'grab' }}
+        className="max-h-[min(68dvh,560px)] md:max-h-[75vh] touch-pan-x touch-pan-y overscroll-x-contain overscroll-y-contain [-webkit-overflow-scrolling:touch]"
+        style={{ overflowX: 'auto', overflowY: 'auto', cursor: 'grab' }}
         onMouseDown={onPanDown}
         onMouseMove={onPanMove}
         onMouseUp={onPanUp}

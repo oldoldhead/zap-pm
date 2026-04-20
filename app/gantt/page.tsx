@@ -142,7 +142,7 @@ export default function GanttPage() {
   }, [])
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       <div>
         <h1 className="text-xl font-semibold text-white">甘特圖</h1>
         <p className="text-zinc-500 text-sm mt-1">專案時程總覽</p>
@@ -150,19 +150,19 @@ export default function GanttPage() {
 
       <FilterBar filters={filters} onChange={setFilters} />
 
-      <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-4">
+      <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-3 sm:p-4">
         {/* Header row */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-700/50">
-          <div className="flex items-center gap-4 text-xs text-zinc-500">
-            <span className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 pb-3 border-b border-zinc-700/50">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1 text-xs text-zinc-500">
+            <span className="flex items-center gap-1.5 shrink-0">
               <span className="w-px h-4 bg-cyan-400/60 inline-block" />
               今天
             </span>
-            <span>游標移到階段列 → 出現 <span className="text-zinc-400 font-medium">＋</span> 可新增階段</span>
-            <span>雙擊階段條 → 編輯名稱／日期</span>
-            <span>游標移到條上 → <span className="text-zinc-400 font-medium">×</span> 刪除</span>
+            <span className="hidden lg:inline">游標移到階段列 → 出現 <span className="text-zinc-400 font-medium">＋</span> 可新增階段</span>
+            <span className="hidden xl:inline">雙擊階段條 → 編輯名稱／日期</span>
+            <span className="lg:hidden text-zinc-600">＋ 新增 · 雙擊編輯 · 左右滑動看時程</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {syncStatus === 'saving' && (
               <span className="text-xs text-zinc-400 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />

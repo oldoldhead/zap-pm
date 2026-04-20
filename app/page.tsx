@@ -51,7 +51,7 @@ export default function DashboardPage() {
     .sort((a, b) => a.name.localeCompare(b.name, 'zh-TW', { numeric: true }))
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-white">儀表板</h1>
         <p className="text-zinc-500 text-sm mt-1">所有專案總覽</p>
@@ -59,12 +59,12 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-8 gap-3">
-        <div className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/50">
+        <div className="bg-zinc-800/60 rounded-xl p-3 sm:p-4 border border-zinc-700/50">
           <p className="text-zinc-500 text-xs mb-1">全部專案</p>
           <p className="text-2xl font-bold text-white">{projects.length}</p>
         </div>
         {ALL_STATUSES.map((s) => (
-          <div key={s.status} className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/50">
+          <div key={s.status} className="bg-zinc-800/60 rounded-xl p-3 sm:p-4 border border-zinc-700/50">
             <p className="text-zinc-500 text-xs mb-1">{s.label}</p>
             <p className={`text-2xl font-bold ${s.color}`}>
               {projects.filter((p) => p.status === s.status).length}
@@ -83,8 +83,9 @@ export default function DashboardPage() {
         <div className="text-zinc-500 text-sm">沒有符合條件的專案</div>
       ) : (
         <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
           {/* Table header */}
-          <div className="grid grid-cols-[2rem_1fr_6rem_6rem_6rem] gap-4 px-4 py-2.5 border-b border-zinc-700/50 text-xs text-zinc-500 font-medium">
+          <div className="grid grid-cols-[2rem_minmax(8rem,1fr)_5rem_4.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_6rem] min-w-[min(100%,520px)] sm:min-w-0 gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 border-b border-zinc-700/50 text-xs text-zinc-500 font-medium">
             <span>類</span>
             <span>專案名稱</span>
             <span>類別</span>
@@ -95,6 +96,7 @@ export default function DashboardPage() {
           {filtered.map((project) => (
             <ProjectRow key={project.id} project={project} />
           ))}
+          </div>
         </div>
       )}
     </div>
@@ -107,7 +109,7 @@ function ProjectRow({ project }: { project: Project }) {
   const lastStage = activeStages[activeStages.length - 1]
 
   return (
-    <div className="grid grid-cols-[2rem_1fr_6rem_6rem_6rem] gap-4 px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-700/20 transition-colors items-center">
+    <div className="grid grid-cols-[2rem_minmax(8rem,1fr)_5rem_4.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_6rem] min-w-[min(100%,520px)] sm:min-w-0 gap-2 sm:gap-4 px-3 sm:px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-700/20 transition-colors items-center">
       {/* Category badge */}
       <span className={`text-xs font-bold ${CATEGORY_TEXT_COLORS[project.category]}`}>
         {project.category}

@@ -15,6 +15,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 手機：避免橫向整頁被撐開、觸控捲動較順 */
+@media (max-width: 767px) {
+  html {
+    overflow-x: hidden;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
