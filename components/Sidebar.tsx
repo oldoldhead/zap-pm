@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, GanttChartSquare, Users, Zap } from 'lucide-react'
+import { DeployVersionStamp } from '@/components/DeployVersionStamp'
 
 const navItems = [
   { href: '/', label: '儀表板', icon: LayoutDashboard },
@@ -47,6 +48,9 @@ export default function Sidebar() {
 
       <div className="px-4 py-4 border-t border-zinc-800">
         <p className="text-xs text-zinc-600">© 2025 ZAP Creative</p>
+        <p className="mt-2 text-[10px] leading-snug text-zinc-600">
+          <DeployVersionStamp />
+        </p>
       </div>
     </aside>
   )

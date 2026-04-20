@@ -534,7 +534,10 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                 </div>
               ))}
               {showToday && (
-                <div className="absolute top-0 bottom-0 w-px bg-cyan-400/60 z-20" style={{ left: todayLeft }} />
+                <div
+                  className="absolute top-0 bottom-0 z-20 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.45)]"
+                  style={{ left: todayLeft, width: 3, marginLeft: -1 }}
+                />
               )}
             </div>
           </div>
@@ -640,7 +643,10 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                   ))}
                   {/* Today line */}
                   {showToday && (
-                    <div className="absolute top-0 bottom-0 w-px bg-cyan-400/20 z-0" style={{ left: todayLeft }} />
+                    <div
+                      className="absolute top-0 bottom-0 z-0 rounded-full bg-cyan-400/70"
+                      style={{ left: todayLeft, width: 3, marginLeft: -1 }}
+                    />
                   )}
 
                   {/* No stages hint */}
@@ -935,9 +941,10 @@ function EditPopoverDialog({
         <button
           type="button"
           onClick={onDuplicate}
+          title="複製為新階段（名稱加「複本」，日期與顏色相同）"
           className="w-full text-cyan-400/90 hover:text-cyan-300 hover:bg-cyan-950/40 text-xs rounded-lg py-1.5 transition-colors"
         >
-          複製此階段（同名加「複本」、日期與顏色相同）
+          複製
         </button>
       </div>
 
