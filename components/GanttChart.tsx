@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback, useMemo, useEffect, useLayoutEffect } from 'react'
 import { Project, ProjectStage, CATEGORY_TEXT_COLORS, STAGE_PALETTE, STATUS_COLORS } from '@/lib/types'
+import WatchToggle from '@/components/WatchToggle'
 
 interface UpdatePayload {
   name?: string
@@ -17,6 +18,8 @@ interface GanttChartProps {
   onAddStage: (projectId: string, name: string, startDate: string, endDate: string, colorIndex: number) => void
   onDeleteStage: (projectId: string, stageId: string) => void
   onDuplicateStage: (projectId: string, source: ProjectStage) => void
+  isWatched?: (projectId: string) => boolean
+  onToggleWatch?: (projectId: string) => void
 }
 
 const DAY_WIDTH = 5
@@ -65,43 +68,143 @@ function shouldUseDesktopGanttLabelUi(w: number, h: number): boolean {
   return w >= VIEWPORT_DESKTOP_LABEL_UI_MIN
 }
 
-/** 先套用有 laneIndex 的列，其餘階段再自動塞入不重疊的列 */
-function assignLanesMerged(stages: ProjectStage[]): Map<string, number> {
+function datesOverlap(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string
+): boolean {
+  return aStart <= bEnd && bStart <= aEnd
+}
+
+function stageLaneOf(s: ProjectStage, laneMap: Map<string, number>): number | undefined {
+  if (s.laneIndex != null && s.laneIndex >= 0) return s.laneIndex
+  return laneMap.get(s.stageId)
+}
+
+/** 某列上是否與既有項目（依 laneMap）日期重疊 */
+function laneHasDateOverlap(
+  stages: ProjectStage[],
+  laneMap: Map<string, number>,
+  lane: number,
+  start: string,
+  end: string,
+  excludeStageId: string
+): boolean {
+  for (const s of stages) {
+    if (s.stageId === excludeStageId || !s.startDate || !s.endDate) continue
+    if (stageLaneOf(s, laneMap) !== lane) continue
+    if (datesOverlap(start, end, s.startDate, s.endDate)) return true
+  }
+  return false
+}
+
+/** 找最近可用列（由 0 往上，必要時開新列） */
+function findNearestFreeLane(
+  stages: ProjectStage[],
+  laneMap: Map<string, number>,
+  start: string,
+  end: string,
+  excludeStageId: string
+): number {
+  let maxLane = 0
+  for (const L of laneMap.values()) maxLane = Math.max(maxLane, L)
+  for (const s of stages) {
+    if (s.laneIndex != null && s.laneIndex >= 0) maxLane = Math.max(maxLane, s.laneIndex)
+  }
+  for (let lane = 0; lane <= maxLane + 1; lane++) {
+    if (!laneHasDateOverlap(stages, laneMap, lane, start, end, excludeStageId)) {
+      return lane
+    }
+  }
+  return maxLane + 1
+}
+
+/**
+ * 穩定列：有 laneIndex 的固定；缺的只做一次貪婪塞列，不移動已固定項。
+ * （顯示用；寫回後就不會再因全域重排跳列）
+ */
+function assignStableLanes(stages: ProjectStage[]): Map<string, number> {
   const laneMap = new Map<string, number>()
-  const valid = stages
-    .filter((s) => s.startDate && s.endDate)
-    .sort((a, b) => a.startDate!.localeCompare(b.startDate!))
-  const laneEndDates: string[] = []
+  const valid = stages.filter((s) => s.startDate && s.endDate)
+  const missing: ProjectStage[] = []
 
   for (const s of valid) {
     if (s.laneIndex != null && s.laneIndex >= 0) {
-      const L = s.laneIndex
-      while (laneEndDates.length <= L) {
-        laneEndDates.push('1970-01-01')
-      }
-      laneMap.set(s.stageId, L)
-      const prev = laneEndDates[L] ?? '1970-01-01'
-      if (s.endDate! > prev) laneEndDates[L] = s.endDate!
+      laneMap.set(s.stageId, s.laneIndex)
+    } else {
+      missing.push(s)
     }
   }
 
-  for (const s of valid) {
-    if (s.laneIndex != null && s.laneIndex >= 0) continue
-    let placed = false
-    for (let i = 0; i < laneEndDates.length; i++) {
-      if (s.startDate! >= laneEndDates[i]) {
-        laneMap.set(s.stageId, i)
-        laneEndDates[i] = s.endDate!
-        placed = true
-        break
-      }
-    }
-    if (!placed) {
-      laneMap.set(s.stageId, laneEndDates.length)
-      laneEndDates.push(s.endDate!)
-    }
+  missing.sort((a, b) => a.startDate!.localeCompare(b.startDate!))
+  for (const s of missing) {
+    const lane = findNearestFreeLane(stages, laneMap, s.startDate!, s.endDate!, s.stageId)
+    laneMap.set(s.stageId, lane)
   }
   return laneMap
+}
+
+/**
+ * 只解「與 prefer 同列且日期重疊」的衝突：prefer 留在原列，被壓到的改到最近可用列。
+ * 回傳被壓到項的 laneIndex 變更（不含 prefer 本身）。
+ */
+function resolveSameLaneOverlaps(
+  stages: ProjectStage[],
+  preferStageId: string
+): { stageId: string; laneIndex: number }[] {
+  const prefer = stages.find((s) => s.stageId === preferStageId)
+  if (!prefer?.startDate || !prefer?.endDate) return []
+
+  const laneMap = assignStableLanes(stages)
+  const preferLane = laneMap.get(preferStageId)
+  if (preferLane == null) return []
+
+  const changes: { stageId: string; laneIndex: number }[] = []
+
+  const victims = stages.filter(
+    (s) =>
+      s.stageId !== preferStageId &&
+      !!s.startDate &&
+      !!s.endDate &&
+      laneMap.get(s.stageId) === preferLane &&
+      datesOverlap(prefer.startDate!, prefer.endDate!, s.startDate, s.endDate)
+  )
+
+  for (const victim of victims) {
+    const prev = laneMap.get(victim.stageId)
+    if (prev != null) laneMap.delete(victim.stageId)
+    const newLane = findNearestFreeLane(
+      stages,
+      laneMap,
+      victim.startDate!,
+      victim.endDate!,
+      victim.stageId
+    )
+    laneMap.set(victim.stageId, newLane)
+    if (newLane !== prev) {
+      changes.push({ stageId: victim.stageId, laneIndex: newLane })
+    } else if (victim.laneIndex == null || victim.laneIndex !== newLane) {
+      changes.push({ stageId: victim.stageId, laneIndex: newLane })
+    }
+  }
+
+  return changes
+}
+
+/** 缺 laneIndex 的階段：穩定指派後需寫回的清單 */
+function collectMissingLaneBackfills(
+  stages: ProjectStage[]
+): { stageId: string; laneIndex: number }[] {
+  const laneMap = assignStableLanes(stages)
+  const out: { stageId: string; laneIndex: number }[] = []
+  for (const s of stages) {
+    if (!s.startDate || !s.endDate) continue
+    if (s.laneIndex != null && s.laneIndex >= 0) continue
+    const L = laneMap.get(s.stageId)
+    if (L != null) out.push({ stageId: s.stageId, laneIndex: L })
+  }
+  return out
 }
 
 function rowHeight(laneMap: Map<string, number>): number {
@@ -186,11 +289,21 @@ interface LaneDragState {
   originalLane: number
 }
 
-export default function GanttChart({ projects, onUpdateStage, onAddStage, onDeleteStage, onDuplicateStage }: GanttChartProps) {
+export default function GanttChart({
+  projects,
+  onUpdateStage,
+  onAddStage,
+  onDeleteStage,
+  onDuplicateStage,
+  isWatched,
+  onToggleWatch,
+}: GanttChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const panRef = useRef<{ active: boolean; startX: number; scrollLeft: number }>({ active: false, startX: 0, scrollLeft: 0 })
   const didInitialGanttScroll = useRef(false)
+  /** 已寫回 laneIndex 的 stage key：`${projectId}:${stageId}`，避免重複 PATCH */
+  const laneBackfillDoneRef = useRef<Set<string>>(new Set())
   const [laneDrag, setLaneDrag] = useState<LaneDragState | null>(null)
   const [resizing, setResizing] = useState<ResizeState | null>(null)
   const [editPopover, setEditPopover] = useState<EditPopover | null>(null)
@@ -290,6 +403,19 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
     scrollRef.current.scrollLeft = Math.max(0, todayLeft - containerWidth / 2)
   }, [startDate, projects])
 
+  /** 缺 laneIndex 的舊資料／新階段：穩定指派後背景寫回（每 stage 一次） */
+  useEffect(() => {
+    for (const project of projects) {
+      const backfills = collectMissingLaneBackfills(project.stages)
+      for (const { stageId, laneIndex } of backfills) {
+        const key = `${project.id}:${stageId}`
+        if (laneBackfillDoneRef.current.has(key)) continue
+        laneBackfillDoneRef.current.add(key)
+        onUpdateStage(project.id, stageId, { laneIndex })
+      }
+    }
+  }, [projects, onUpdateStage])
+
   // Global mouse events for resize
   useEffect(() => {
     if (!resizing) return
@@ -307,7 +433,27 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
         const finalStart = resizing.side === 'start' ? newDate : (stage.startDate ?? newDate)
         const finalEnd = resizing.side === 'end' ? newDate : (stage.endDate ?? newDate)
         if (finalStart <= finalEnd) {
-          onUpdateStage(resizing.projectId, resizing.stageId, { startDate: finalStart, endDate: finalEnd })
+          const laneForPrefer =
+            stage.laneIndex != null && stage.laneIndex >= 0
+              ? stage.laneIndex
+              : assignStableLanes(project!.stages).get(resizing.stageId) ?? 0
+          onUpdateStage(resizing.projectId, resizing.stageId, {
+            startDate: finalStart,
+            endDate: finalEnd,
+            ...(stage.laneIndex == null || stage.laneIndex < 0
+              ? { laneIndex: laneForPrefer }
+              : {}),
+          })
+          // 只解同列重疊：被改日期的項留在原列，被壓到的才換列
+          const updatedStages = project!.stages.map((s) =>
+            s.stageId === resizing.stageId
+              ? { ...s, startDate: finalStart, endDate: finalEnd, laneIndex: laneForPrefer }
+              : s
+          )
+          const conflicts = resolveSameLaneOverlaps(updatedStages, resizing.stageId)
+          for (const c of conflicts) {
+            onUpdateStage(resizing.projectId, c.stageId, { laneIndex: c.laneIndex })
+          }
         }
       }
       setResizing(null)
@@ -357,21 +503,36 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
     }
   }, [labelColumnDrag])
 
-  // 桌機：上下拖曳換列（lane）
+  // 桌機：上下拖曳換列（lane）— prefer 被拖項，只讓被重疊項換列
   useEffect(() => {
     if (!laneDrag) return
     const onUp = (e: MouseEvent) => {
       const dy = e.clientY - laneDrag.startY
       const deltaLanes = Math.round(dy / LANE_HEIGHT)
       const newLane = Math.max(0, laneDrag.originalLane + deltaLanes)
-      if (newLane !== laneDrag.originalLane) {
+      const project = projects.find((p) => p.id === laneDrag.projectId)
+      if (project && newLane !== laneDrag.originalLane) {
         onUpdateStage(laneDrag.projectId, laneDrag.stageId, { laneIndex: newLane })
+        const updatedStages = project.stages.map((s) =>
+          s.stageId === laneDrag.stageId ? { ...s, laneIndex: newLane } : s
+        )
+        const conflicts = resolveSameLaneOverlaps(updatedStages, laneDrag.stageId)
+        for (const c of conflicts) {
+          if (c.stageId === laneDrag.stageId) continue
+          onUpdateStage(laneDrag.projectId, c.stageId, { laneIndex: c.laneIndex })
+        }
+      } else if (project && newLane === laneDrag.originalLane) {
+        // 未換列但可能缺 laneIndex：補寫
+        const stage = project.stages.find((s) => s.stageId === laneDrag.stageId)
+        if (stage && (stage.laneIndex == null || stage.laneIndex < 0)) {
+          onUpdateStage(laneDrag.projectId, laneDrag.stageId, { laneIndex: newLane })
+        }
       }
       setLaneDrag(null)
     }
     window.addEventListener('mouseup', onUp)
     return () => window.removeEventListener('mouseup', onUp)
-  }, [laneDrag, onUpdateStage])
+  }, [laneDrag, onUpdateStage, projects])
 
   const onPanDown = useCallback((e: React.MouseEvent) => {
     if (resizing || laneDrag) return
@@ -544,7 +705,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
 
           {/* ── Project rows ── */}
           {projects.map((project) => {
-            const laneMap = assignLanesMerged(project.stages)
+            const laneMap = assignStableLanes(project.stages)
             const rh = rowHeight(laneMap)
             return (
               <div
@@ -554,7 +715,7 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
               >
                 {/* Label cell – sticky left；桌機依欄寬，手機固定 1/3 螢幕寬、名稱欄內橫向捲動 */}
                 <div
-                  className={`gantt-sticky-label shrink-0 flex items-center min-w-0 border-r border-zinc-800/50 box-border ${viewportWideForLabelUi ? 'gap-2 px-3' : 'px-2'}`}
+                  className={`gantt-sticky-label shrink-0 flex items-center min-w-0 border-r border-zinc-800/50 box-border ${viewportWideForLabelUi ? 'gap-1.5 px-2' : 'px-2 gap-1'}`}
                   style={{
                     position: 'sticky',
                     left: 0,
@@ -564,6 +725,13 @@ export default function GanttChart({ projects, onUpdateStage, onAddStage, onDele
                     height: rh,
                   }}
                 >
+                  {onToggleWatch && isWatched && (
+                    <WatchToggle
+                      compact
+                      watched={isWatched(project.id)}
+                      onToggle={() => onToggleWatch(project.id)}
+                    />
+                  )}
                   {viewportWideForLabelUi && (
                     <span className={`text-xs font-bold shrink-0 ${CATEGORY_TEXT_COLORS[project.category]}`}>
                       {project.category}

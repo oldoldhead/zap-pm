@@ -86,4 +86,6 @@ export interface FilterState {
   category: ProjectCategory | 'all'
   assignee: TeamMember | 'all'
   search: string
+  /** true = 只顯示已關注的專案 */
+  watchedOnly: boolean
 }

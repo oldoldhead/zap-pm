@@ -1,11 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Project, ProjectStatus, STATUS_COLORS, CATEGORY_LABELS, CATEGORY_TEXT_COLORS, FilterState } from '@/lib/types'
 import FilterBar from '@/components/FilterBar'
+import WatchToggle from '@/components/WatchToggle'
+import { useWatchedProjects } from '@/hooks/useWatchedProjects'
 
-function applyFilters(projects: Project[], filters: FilterState): Project[] {
+function applyFilters(
+  projects: Project[],
+  filters: FilterState,
+  watchedSet: Set<string>
+): Project[] {
   return projects.filter((p) => {
+    if (filters.watchedOnly && !watchedSet.has(p.id)) return false
     if (filters.statuses.length > 0 && !filters.statuses.includes(p.status)) return false
     if (filters.category !== 'all' && p.category !== filters.category) return false
     if (filters.assignee !== 'all') {
@@ -37,7 +44,9 @@ export default function DashboardPage() {
     category: 'all',
     assignee: 'all',
     search: '',
+    watchedOnly: false,
   })
+  const { watchedSet, watchedCount, isWatched, toggleWatch } = useWatchedProjects()
 
   useEffect(() => {
     fetch('/api/projects')
@@ -46,9 +55,13 @@ export default function DashboardPage() {
       .catch(() => setLoading(false))
   }, [])
 
-  const filtered = applyFilters(projects, filters)
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-TW', { numeric: true }))
+  const filtered = useMemo(
+    () =>
+      applyFilters(projects, filters, watchedSet)
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, 'zh-TW', { numeric: true })),
+    [projects, filters, watchedSet]
+  )
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -74,18 +87,25 @@ export default function DashboardPage() {
       </div>
 
       {/* Filters */}
-      <FilterBar filters={filters} onChange={setFilters} />
+      <FilterBar filters={filters} onChange={setFilters} watchedCount={watchedCount} />
 
       {/* Project list — flat table */}
       {loading ? (
         <div className="text-zinc-500 text-sm">載入中...</div>
       ) : filtered.length === 0 ? (
-        <div className="text-zinc-500 text-sm">沒有符合條件的專案</div>
+        <div className="text-zinc-500 text-sm">
+          {filters.watchedOnly
+            ? watchedCount === 0
+              ? '尚未關注任何專案，請先點星號加入關注'
+              : '沒有符合條件的關注專案'
+            : '沒有符合條件的專案'}
+        </div>
       ) : (
         <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
           {/* Table header */}
-          <div className="grid grid-cols-[2rem_minmax(8rem,1fr)_5rem_4.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_6rem] min-w-[min(100%,520px)] sm:min-w-0 gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 border-b border-zinc-700/50 text-xs text-zinc-500 font-medium">
+          <div className="grid grid-cols-[1.75rem_2rem_minmax(8rem,1fr)_5rem_4.5rem_4.5rem] sm:grid-cols-[2rem_2rem_1fr_6rem_6rem_6rem] min-w-[min(100%,560px)] sm:min-w-0 gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 border-b border-zinc-700/50 text-xs text-zinc-500 font-medium">
+            <span className="sr-only">關注</span>
             <span>類</span>
             <span>專案名稱</span>
             <span>類別</span>
@@ -94,7 +114,12 @@ export default function DashboardPage() {
           </div>
           {/* Rows */}
           {filtered.map((project) => (
-            <ProjectRow key={project.id} project={project} />
+            <ProjectRow
+              key={project.id}
+              project={project}
+              watched={isWatched(project.id)}
+              onToggleWatch={() => toggleWatch(project.id)}
+            />
           ))}
           </div>
         </div>
@@ -103,13 +128,23 @@ export default function DashboardPage() {
   )
 }
 
-function ProjectRow({ project }: { project: Project }) {
+function ProjectRow({
+  project,
+  watched,
+  onToggleWatch,
+}: {
+  project: Project
+  watched: boolean
+  onToggleWatch: () => void
+}) {
   const activeStages = project.stages.filter((s) => s.startDate)
   const progress = Math.round((activeStages.length / 7) * 100)
   const lastStage = activeStages[activeStages.length - 1]
 
   return (
-    <div className="grid grid-cols-[2rem_minmax(8rem,1fr)_5rem_4.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_6rem] min-w-[min(100%,520px)] sm:min-w-0 gap-2 sm:gap-4 px-3 sm:px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-700/20 transition-colors items-center">
+    <div className="grid grid-cols-[1.75rem_2rem_minmax(8rem,1fr)_5rem_4.5rem_4.5rem] sm:grid-cols-[2rem_2rem_1fr_6rem_6rem_6rem] min-w-[min(100%,560px)] sm:min-w-0 gap-2 sm:gap-4 px-3 sm:px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-700/20 transition-colors items-center">
+      <WatchToggle watched={watched} onToggle={onToggleWatch} />
+
       {/* Category badge */}
       <span className={`text-xs font-bold ${CATEGORY_TEXT_COLORS[project.category]}`}>
         {project.category}

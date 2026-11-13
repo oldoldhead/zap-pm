@@ -4,11 +4,17 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Project, ProjectStage, FilterState } from '@/lib/types'
 import FilterBar from '@/components/FilterBar'
 import GanttChart from '@/components/GanttChart'
+import { useWatchedProjects } from '@/hooks/useWatchedProjects'
 
 type SyncStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-function applyFilters(projects: Project[], filters: FilterState): Project[] {
+function applyFilters(
+  projects: Project[],
+  filters: FilterState,
+  watchedSet: Set<string>
+): Project[] {
   return projects.filter((p) => {
+    if (filters.watchedOnly && !watchedSet.has(p.id)) return false
     if (filters.statuses.length > 0 && !filters.statuses.includes(p.status)) return false
     if (filters.category !== 'all' && p.category !== filters.category) return false
     if (filters.assignee !== 'all') {
@@ -32,7 +38,9 @@ export default function GanttPage() {
     category: 'all',
     assignee: 'all',
     search: '',
+    watchedOnly: false,
   })
+  const { watchedSet, watchedCount, isWatched, toggleWatch } = useWatchedProjects()
 
   // Load projects (metadata) + custom stages
   useEffect(() => {
@@ -55,10 +63,10 @@ export default function GanttPage() {
   )
 
   const filtered = useMemo(() =>
-    applyFilters(projectsWithStages, filters)
+    applyFilters(projectsWithStages, filters, watchedSet)
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, 'zh-TW', { numeric: true })),
-    [projectsWithStages, filters]
+    [projectsWithStages, filters, watchedSet]
   )
 
   // ── Add stage ──────────────────────────────────────────────────────────────
@@ -196,7 +204,7 @@ export default function GanttPage() {
         <p className="text-zinc-500 text-sm mt-1">專案時程總覽</p>
       </div>
 
-      <FilterBar filters={filters} onChange={setFilters} />
+      <FilterBar filters={filters} onChange={setFilters} watchedCount={watchedCount} />
 
       <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-3 sm:p-4">
         {/* Header row */}
@@ -234,6 +242,14 @@ export default function GanttPage() {
 
         {loading ? (
           <div className="text-zinc-500 text-sm py-8 text-center">載入中...</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-zinc-500 text-sm py-8 text-center">
+            {filters.watchedOnly
+              ? watchedCount === 0
+                ? '尚未關注任何專案，請先在左側點星號加入關注'
+                : '沒有符合條件的關注專案'
+              : '沒有符合條件的專案'}
+          </div>
         ) : (
           <GanttChart
             projects={filtered}
@@ -241,6 +257,8 @@ export default function GanttPage() {
             onAddStage={handleAddStage}
             onDeleteStage={handleDeleteStage}
             onDuplicateStage={handleDuplicateStage}
+            isWatched={isWatched}
+            onToggleWatch={toggleWatch}
           />
         )}
       </div>

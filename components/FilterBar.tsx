@@ -1,10 +1,13 @@
 'use client'
 
+import { Star } from 'lucide-react'
 import { FilterState, ProjectCategory, ProjectStatus, TeamMember, CATEGORY_LABELS } from '@/lib/types'
 
 interface FilterBarProps {
   filters: FilterState
   onChange: (filters: FilterState) => void
+  /** 目前關注數量（顯示在「只看關注」按鈕上） */
+  watchedCount?: number
 }
 
 const STATUS_OPTIONS: { value: ProjectStatus; label: string; activeClass: string }[] = [
@@ -20,7 +23,7 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string; activeClass: string
 const categories: (ProjectCategory | 'all')[] = ['all', '0', 'A', 'B', 'C', 'D', 'E', 'X']
 const assignees: (TeamMember | 'all')[] = ['all', '瑜芸', '芷榕']
 
-export default function FilterBar({ filters, onChange }: FilterBarProps) {
+export default function FilterBar({ filters, onChange, watchedCount = 0 }: FilterBarProps) {
   function toggleStatus(status: ProjectStatus) {
     const current = filters.statuses
     const next = current.includes(status)
@@ -33,7 +36,8 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
     filters.statuses.length > 0 ||
     filters.category !== 'all' ||
     filters.assignee !== 'all' ||
-    filters.search
+    filters.search ||
+    filters.watchedOnly
 
   return (
     <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
@@ -45,6 +49,31 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
         onChange={(e) => onChange({ ...filters, search: e.target.value })}
         className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-lg px-3 py-2 w-full min-w-0 sm:w-48 focus:outline-none focus:border-cyan-500 placeholder-zinc-500"
       />
+
+      {/* 只看關注 */}
+      <button
+        type="button"
+        onClick={() => onChange({ ...filters, watchedOnly: !filters.watchedOnly })}
+        title={filters.watchedOnly ? '目前只顯示關注專案，再點一次顯示全部' : '只顯示已關注的專案'}
+        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
+          filters.watchedOnly
+            ? 'bg-amber-500/20 text-amber-300 border-amber-500/60'
+            : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-200'
+        }`}
+      >
+        <Star
+          size={14}
+          className="shrink-0"
+          fill={filters.watchedOnly ? 'currentColor' : 'none'}
+          strokeWidth={filters.watchedOnly ? 0 : 2}
+        />
+        <span>只看關注</span>
+        {watchedCount > 0 && (
+          <span className={`tabular-nums ${filters.watchedOnly ? 'text-amber-200/80' : 'text-zinc-500'}`}>
+            {watchedCount}
+          </span>
+        )}
+      </button>
 
       {/* Status multi-select toggle buttons */}
       <div className="flex flex-wrap gap-1.5">
@@ -93,7 +122,15 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
       {/* Clear */}
       {hasFilter && (
         <button
-          onClick={() => onChange({ statuses: [], category: 'all', assignee: 'all', search: '' })}
+          onClick={() =>
+            onChange({
+              statuses: [],
+              category: 'all',
+              assignee: 'all',
+              search: '',
+              watchedOnly: false,
+            })
+          }
           className="text-xs text-zinc-400 hover:text-cyan-400 transition-colors px-2 py-2"
         >
           清除篩選
